@@ -221,6 +221,21 @@ are genuine — `getPastVotes` returns 0 at block 11,676,781 and 1,000,000 at 11
 the block the delegation landed in. Every other part of the path is the production one,
 and pointing this at a widely-held token changes one constructor argument.
 
+### Both kinds of batching, measured
+
+| What | Chain | Hash |
+|---|---|---|
+| Two queries from different blocks, one shared continuity proof | CC3 testnet | [`0xf05c6f49ff2d9ed8e41eaf21853c49a8ebe03a274249acc8c7ca3d95e98218c4`](https://creditcoin-testnet.blockscout.com/tx/0xf05c6f49ff2d9ed8e41eaf21853c49a8ebe03a274249acc8c7ca3d95e98218c4) |
+
+Sepolia blocks 11,677,327 and 11,677,331, spanned by 14 continuity roots, recorded in one
+Creditcoin transaction: **261,492 gas, 130,746 per query**, against 200,480 to prove one
+alone. That is 35% cheaper than proving the two separately.
+
+An earlier version of this file called the 231,101 figure a shared continuity proof. It
+was not: that transaction called `submitProof` on a single source transaction carrying two
+logs. Both mechanisms are real and their costs differ — 30,621 gas for another log in the
+same transaction, 61,012 for another query under a shared continuity chain.
+
 ### The refusals, on the live chain
 
 Rejections are asserted in tests, but two of them have now also been observed on

@@ -76,9 +76,24 @@ ten separate transactions, each with its own Merkle proof, sharing one continuit
 That is what amortises the continuity chain, and it is the path for feeds probed in
 different blocks.
 
-The first is measured. The second is implemented and unit-tested but had not been
-exercised on chain when this file was first written, and no gas figure was honestly
-available for it. It is measured below once it has been.
+Both are now measured, and they are not the same number.
+
+| | Gas | Per query |
+|---|---|---|
+| One query, `submitProof` | 200,480 | 200,480 |
+| Two logs in one source transaction, `submitProof` | 231,101 | 115,551 |
+| Two queries in different blocks, `submitBatch` | **261,492** | **130,746** |
+
+Marginal cost of a second **log in the same transaction**: 30,621 gas.
+Marginal cost of a second **query under a shared continuity proof**: 61,012 gas.
+
+The batch of two spanned Sepolia blocks 11,677,327 to 11,677,331 with **14 continuity
+roots**, and cost 35% less than proving the two separately. The precompile accepts ten
+queries, so a full batch falls further, but the marginal figure is the honest one to
+extrapolate from and it is twice what an earlier version of this file claimed.
+
+Use `probeMany` when feeds can be read in the same block — it is the cheaper of the two.
+Use `submitBatch` when they cannot, which is any feed probed on its own cadence.
 
 ## What the lag means for a feed
 
