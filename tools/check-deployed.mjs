@@ -16,7 +16,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { keccak256 } from 'ethers';
-import { env, creditcoin, sourceProvider } from '../prober/lib/config.mjs';
+import { env, creditcoin, sourceProvider, addresses
+} from '../prober/lib/config.mjs';
 
 const stripMetadata = (hex) => {
   if (!hex || hex === '0x') return hex;
@@ -38,16 +39,16 @@ const maskImmutables = (hex, refs) => {
 };
 
 const targets = [
-  ['LensRegistry', env.LENS_REGISTRY, creditcoin],
-  ['LensAggregatorV3', env.LENS_AGGREGATOR_ETHUSD, creditcoin],
-  ['CircuitBreaker', env.LENS_BREAKER, creditcoin],
-  ['FeedEscrow', env.LENS_ESCROW, creditcoin],
-  ['VotePort', env.LENS_VOTEPORT, creditcoin],
-  ['SnapshotProver', env.LENS_SNAPSHOT, creditcoin],
-  ['LensMarket', env.LENS_MARKET, creditcoin],
-  ['ReserveMonitor', env.LENS_RESERVE_MONITOR, creditcoin],
-  ['StateProbe', env.LENS_PROBE, sourceProvider(11155111)],
-  ['StateProbe (mainnet)', env.LENS_PROBE, sourceProvider(1)],
+  ['LensRegistry', addresses.registry, creditcoin],
+  ['LensAggregatorV3', addresses.aggregator, creditcoin],
+  ['CircuitBreaker', addresses.breaker, creditcoin],
+  ['FeedEscrow', addresses.escrow, creditcoin],
+  ['VotePort', addresses.votePort, creditcoin],
+  ['SnapshotProver', addresses.snapshotProver, creditcoin],
+  ['LensMarket', addresses.market, creditcoin],
+  ['ReserveMonitor', addresses.reserveMonitor, creditcoin],
+  ['StateProbe', addresses.probe, sourceProvider(11155111)],
+  ['StateProbe (mainnet)', addresses.probe, sourceProvider(1)],
 ];
 
 let stale = 0;

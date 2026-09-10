@@ -35,13 +35,13 @@ const claimedContracts = [
   { label: 'StateProbe (current)', address: addresses.probe, on: sepolia, chain: 'Sepolia' },
   // Same address on both source chains by construction; the README says so, so it is checked.
   { label: 'StateProbe (mainnet)', address: addresses.probe, on: mainnet, chain: 'Ethereum mainnet' },
-  { label: 'LensAggregatorV3', address: env.LENS_AGGREGATOR_ETHUSD, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'ReserveMonitor', address: env.LENS_RESERVE_MONITOR, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'LensMarket', address: env.LENS_MARKET, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'CircuitBreaker', address: env.LENS_BREAKER, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'FeedEscrow', address: env.LENS_ESCROW, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'VotePort', address: env.LENS_VOTEPORT, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'SnapshotProver', address: env.LENS_SNAPSHOT, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'LensAggregatorV3', address: addresses.aggregator, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'ReserveMonitor', address: addresses.reserveMonitor, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'LensMarket', address: addresses.market, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'CircuitBreaker', address: addresses.breaker, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'FeedEscrow', address: addresses.escrow, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'VotePort', address: addresses.votePort, on: creditcoin, chain: 'CC3 testnet' },
+  { label: 'SnapshotProver', address: addresses.snapshotProver, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'BlockProver precompile', address: '0x0000000000000000000000000000000000000FD2', on: creditcoin, chain: 'CC3 testnet', precompile: true },
   { label: 'ChainInfo precompile', address: '0x0000000000000000000000000000000000000fd3', on: creditcoin, chain: 'CC3 testnet', precompile: true },
   { label: 'Decoder contract', address: '0x731c345d79Fb8BbDC541f9DF3b6317585F849F9f', on: creditcoin, chain: 'CC3 testnet' },
@@ -123,9 +123,9 @@ check(
 );
 
 // The aggregator's live answer, checked against its own source contract.
-if (env.LENS_AGGREGATOR_ETHUSD) {
+if (addresses.aggregator) {
   const agg = new Contract(
-    env.LENS_AGGREGATOR_ETHUSD,
+    addresses.aggregator,
     ['function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)'],
     creditcoin,
   );

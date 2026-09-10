@@ -1,0 +1,20 @@
+{
+  "_comment": "Deployed addresses are public facts, not secrets, so they are committed here rather than kept in .env. Tools read this file; .env holds only RPCs and keys, and may override any of these.",
+  "creditcoin": {
+    "chainId": 102031,
+    "name": "Creditcoin CC3 testnet",
+    "explorer": "https://creditcoin-testnet.blockscout.com",
+    "registry": "0x81b6DcbcE28EC0634DC905cfDc5eA84005915852",
+    "aggregatorEthUsd": "0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5",
+    "reserveMonitor": "0xD51bEE1d6b2f013d907D3e13e570b2b6586e0c72",
+    "market": "0xEE527a62C239E4664e887c0e248eAc741E0EF9EF",
+    "votePort": "0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115",
+    "snapshotProver": "0xaef8215c3048687Cf3d0346cB9FcB1BE67c12647",
+    "breaker": "0xf219a37884B5314dD5057d0C4051aa0349907066",
+    "escrow": "0x4f6b5262221a6fBDE2126174577f4E9956ddFa04"
+  },
+  "sources": {
+    "11155111": { "name": "Ethereum Sepolia", "probe": "0xC335466ffcac94fCe7820326930888dAA9204a23", "voteToken": "0x99E1749Fd45Bb14CF59139b04Cc387981f3ef66e" },
+    "1": { "name": "Ethereum mainnet", "probe": "0xC335466ffcac94fCe7820326930888dAA9204a23" }
+  }
+}

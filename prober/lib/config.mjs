@@ -26,10 +26,25 @@ export const artifacts = {
   probe: JSON.parse(readFileSync(new URL('out/StateProbe.sol/StateProbe.json', root))),
 };
 
+/**
+ * Deployed addresses come from a committed file, not from .env.
+ *
+ * They are public facts about a public chain, so keeping them in .env meant a clean clone
+ * had none of them and anything derived from them differed from what was committed. .env
+ * still wins where it sets one, which is how a fork points at its own deployment.
+ */
+export const deployments = JSON.parse(readFileSync(new URL('deployments.json', root), 'utf8'));
+
 export const addresses = {
-  registry: env.LENS_REGISTRY,
-  probe: env.LENS_PROBE,
-  aggregator: env.LENS_AGGREGATOR_ETHUSD,
+  registry: env.LENS_REGISTRY || deployments.creditcoin.registry,
+  probe: env.LENS_PROBE || deployments.sources['11155111'].probe,
+  aggregator: env.LENS_AGGREGATOR_ETHUSD || deployments.creditcoin.aggregatorEthUsd,
+  reserveMonitor: env.LENS_RESERVE_MONITOR || deployments.creditcoin.reserveMonitor,
+  market: env.LENS_MARKET || deployments.creditcoin.market,
+  votePort: env.LENS_VOTEPORT || deployments.creditcoin.votePort,
+  snapshotProver: env.LENS_SNAPSHOT || deployments.creditcoin.snapshotProver,
+  breaker: env.LENS_BREAKER || deployments.creditcoin.breaker,
+  escrow: env.LENS_ESCROW || deployments.creditcoin.escrow,
 };
 
 export const creditcoin = new JsonRpcProvider(env.CC3_TESTNET_RPC, undefined, { staticNetwork: true });

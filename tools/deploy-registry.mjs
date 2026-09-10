@@ -30,8 +30,10 @@ const env = Object.fromEntries(
 );
 
 const CHAIN_INFO = '0x0000000000000000000000000000000000000fd3';
-const PROBE = env.LENS_PROBE;
-if (!PROBE) throw new Error('LENS_PROBE missing from .env; deploy the probe first');
+// The probe address is a deployment fact, so it comes from the committed file unless
+// .env overrides it — which is how a fork points at its own probe.
+const PROBE = env.LENS_PROBE || deployments.sources['11155111'].probe;
+if (!PROBE) throw new Error('no probe address: deploy the probe first, or set LENS_PROBE');
 
 // The native chain ids we want, never the keys. Keys are environment-local.
 const WANTED = [

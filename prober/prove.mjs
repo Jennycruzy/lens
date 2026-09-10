@@ -11,7 +11,7 @@
 import { Contract } from 'ethers';
 import {
   env, chainKeyFor, sourceProvider, creditcoin, creditcoinWallet, registryContract,
-  computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO,
+  computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO,, addresses
 } from './lib/config.mjs';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
 
@@ -120,7 +120,7 @@ const args = [
 
 // Call before estimating. Creditcoin returns a bare revert with no data from
 // eth_estimateGas, so an estimate that fails says nothing about why.
-if (claimFeedId && !env.LENS_ESCROW) {
+if (claimFeedId && !addresses.escrow) {
   console.error('\n  --claim was given but LENS_ESCROW is missing from .env');
   process.exit(2);
 }
@@ -130,7 +130,7 @@ if (claimFeedId && !env.LENS_ESCROW) {
 // cannot be taken by somebody else between proving and claiming.
 const escrow = claimFeedId
   ? new Contract(
-      env.LENS_ESCROW,
+      addresses.escrow,
       [
         'function submitAndClaim(uint64 chainKey,uint64 blockHeight,bytes encodedTransaction,(bytes32 root,(bytes32 hash,bool isLeft)[] siblings) merkleProof,(bytes32 lowerEndpointDigest,bytes32[] roots) continuityProof,bytes32 feedId) returns (uint256 recorded,uint256 paid)',
         'function payableNow(bytes32,uint64) view returns (uint256)',
