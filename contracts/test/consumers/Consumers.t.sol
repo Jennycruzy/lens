@@ -662,3 +662,152 @@ contract VotePortSelectorTest is ConsumerRig {
         new VotePort(registry, KEY, COMPOUND_STYLE, bytes4(0), 1000);
     }
 }
+
+// ---------------------------------------------------------------------------
+
+/// @notice The paths a position takes after it is opened: repaying, withdrawing, and the
+///         refusals that stop a borrower from walking away with the collateral.
+contract LensMarketLifecycleTest is Test {
+    address alice = address(0xA11CE07);
+    FeedWithDecimals feed;
+    LensMarket market;
+
+    function setUp() public {
+        feed = new FeedWithDecimals(8, 2000e8, block.timestamp);
+        market = new LensMarket(feed, 15000, 1000, 1 hours);
+        vm.deal(address(market), 100 ether);
+        vm.deal(alice, 100 ether);
+    }
+
+    function _open(uint256 collateral, uint256 debt) internal {
+        vm.startPrank(alice);
+        market.deposit{value: collateral}();
+        if (debt > 0) market.borrow(debt);
+        vm.stopPrank();
+    }
+
+    function test_repayReducesDebtAndTotal() public {
+        _open(10 ether, 10_000e18);
+        assertEq(market.totalDebt(), 10_000e18);
+
+        vm.prank(alice);
+        market.repay(4_000e18);
+
+        (, uint256 debt) = market.positions(alice);
+        assertEq(debt, 6_000e18);
+        assertEq(market.totalDebt(), 6_000e18);
+    }
+
+    function test_repayingMoreThanOwedIsRefused() public {
+        _open(10 ether, 1_000e18);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(LensMarket.RepayExceedsDebt.selector, 2_000e18, 1_000e18));
+        market.repay(2_000e18);
+    }
+
+    function test_repayingWithNoDebtIsRefused() public {
+        _open(10 ether, 0);
+        vm.prank(alice);
+        vm.expectRevert(LensMarket.NoDebt.selector);
+        market.repay(1);
+    }
+
+    function test_withdrawReturnsCollateralWhenNothingIsOwed() public {
+        _open(10 ether, 0);
+        uint256 before = alice.balance;
+        vm.prank(alice);
+        market.withdraw(4 ether);
+        assertEq(alice.balance, before + 4 ether);
+        (uint256 collateral,) = market.positions(alice);
+        assertEq(collateral, 6 ether);
+    }
+
+    /// The refusal that matters: collateral cannot be withdrawn out from under a debt.
+    function test_withdrawThatWouldUndercollateraliseIsRefused() public {
+        _open(10 ether, 12_000e18);
+        vm.prank(alice);
+        vm.expectRevert();
+        market.withdraw(6 ether);
+
+        (uint256 collateral,) = market.positions(alice);
+        assertEq(collateral, 10 ether, "nothing left the position");
+    }
+
+    function test_withdrawIsAllowedWhileTheDebtStaysCovered() public {
+        _open(10 ether, 2_000e18);
+        vm.prank(alice);
+        market.withdraw(5 ether);
+        assertGe(market.healthFactor(alice), 1e18, "still healthy afterwards");
+    }
+
+    function test_withdrawingMoreThanDepositedIsRefused() public {
+        _open(1 ether, 0);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(LensMarket.WithdrawExceedsCollateral.selector, 2 ether, 1 ether));
+        market.withdraw(2 ether);
+    }
+
+    function test_repayingInFullClearsTheHealthConstraint() public {
+        _open(10 ether, 12_000e18);
+        vm.startPrank(alice);
+        market.repay(12_000e18);
+        market.withdraw(10 ether); // now unconstrained
+        vm.stopPrank();
+        (uint256 collateral, uint256 debt) = market.positions(alice);
+        assertEq(collateral, 0);
+        assertEq(debt, 0);
+        assertEq(market.healthFactor(alice), type(uint256).max, "no debt is infinitely healthy");
+    }
+
+    function test_depositingNothingIsRefused() public {
+        vm.prank(alice);
+        vm.expectRevert(LensMarket.NothingDeposited.selector);
+        market.deposit{value: 0}();
+    }
+
+    function test_borrowingNothingIsRefused() public {
+        _open(10 ether, 0);
+        vm.prank(alice);
+        vm.expectRevert(LensMarket.NothingBorrowed.selector);
+        market.borrow(0);
+    }
+
+    /// A feed reporting zero or a negative number is not a price, and must never be
+    /// treated as one: at zero every position would appear infinitely undercollateralised.
+    function test_aNonPositiveAnswerIsNotAPrice() public {
+        feed.set(0);
+        vm.expectRevert(abi.encodeWithSelector(LensMarket.InvalidPrice.selector, int256(0)));
+        market.price();
+
+        feed.set(-1);
+        vm.expectRevert(abi.encodeWithSelector(LensMarket.InvalidPrice.selector, int256(-1)));
+        market.price();
+    }
+
+    function test_liquidatingSomeoneWithNoDebtIsRefused() public {
+        vm.expectRevert(LensMarket.NoDebt.selector);
+        market.liquidate(alice);
+    }
+
+    function test_aFeedRequiresAnAddress() public {
+        vm.expectRevert(LensMarket.FeedRequired.selector);
+        new LensMarket(AggregatorV3Interface(address(0)), 15000, 1000, 1 hours);
+    }
+
+    /// The seizure is capped by what the position actually holds, so a liquidator can
+    /// never take more collateral than exists.
+    function test_seizureCannotExceedTheCollateralHeld() public {
+        _open(10 ether, 12_000e18);
+        feed.set(600e8); // a severe fall: the debt is now worth more than the collateral
+
+        address liquidator = address(0x11D1);
+        vm.deal(liquidator, 1 ether);
+        vm.prank(liquidator);
+        (, uint256 seized) = market.liquidate(alice);
+
+        assertLe(seized, 10 ether, "never more than was deposited");
+        (uint256 collateral, uint256 debt) = market.positions(alice);
+        assertEq(debt, 0);
+        assertEq(collateral, 10 ether - seized);
+    }
+}
