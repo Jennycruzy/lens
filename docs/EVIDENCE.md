@@ -7,18 +7,36 @@ plan; each row is on a public chain and can be checked without asking us.
 
 | What | Chain | Address | Status |
 |---|---|---|---|
-| `StateProbe` | Ethereum Sepolia (chain key 1) | [`0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe`](https://sepolia.etherscan.io/address/0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe) | live, 1,042 bytes |
-| `StateProbe` | Ethereum mainnet (chain key 3) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` | same address, awaiting funding |
-| `LensRegistry` | Creditcoin CC3 testnet | [`0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA`](https://creditcoin-testnet.blockscout.com/address/0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA) | live |
+| `StateProbe` | Ethereum Sepolia (chain key 1) | [`0xC335466ffcac94fCe7820326930888dAA9204a23`](https://sepolia.etherscan.io/address/0xC335466ffcac94fCe7820326930888dAA9204a23) | current |
+| `StateProbe` | Ethereum mainnet (chain key 3) | `0xC335466ffcac94fCe7820326930888dAA9204a23` | same address, awaiting funding |
+| `LensRegistry` | Creditcoin CC3 testnet | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://creditcoin-testnet.blockscout.com/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) | current |
+
+### Superseded, and why
+
+The first pair are still on chain and still work. They are listed because the
+transactions below were made against them, and a record that quietly drops its earlier
+addresses is not a record.
+
+| What | Chain | Address |
+|---|---|---|
+| `StateProbe` | Sepolia | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` |
+| `LensRegistry` | CC3 testnet | `0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA` |
+
+They were replaced because the probe emitted only the source-chain *height* of a read,
+not its *time*. That is unrecoverable downstream: the timestamp is absent from the proven
+transaction encoding, and Creditcoin's own clock reads minutes later because the
+attestation lag sits between them. A Chainlink-shaped consumer comparing
+`block.timestamp - updatedAt` would have measured the wrong gap and believed the value
+fresher than it was. The probe now emits both clocks and the registry keeps them apart.
 
 The probe is deployed through the standard deterministic deployer with the salt
-`keccak256("lens.state-probe.v1")`, so its address is a property of its bytecode rather
+`keccak256("lens.state-probe.v2")`, so its address is a property of its bytecode rather
 than of who deployed it or when. Anyone can verify the address without trusting us:
 
 ```
 cast compute-address --create2 \
   --salt $(cast keccak "lens.state-probe.v1") \
-  --init-code-hash 0x405e87ce05c732afa93d801edefea825cf7c1847bdab009a21a6a51b7b9290b5 \
+  --init-code-hash <keccak of the current StateProbe creation code> \
   0x4e59b44847b379578588920cA78FbF26c0B4956C
 ```
 
@@ -32,7 +50,9 @@ bytecode lands at the same address, and the registry needs no change.
 | `StateProbe` deployment | Sepolia | [`0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967`](https://sepolia.etherscan.io/tx/0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967) |
 | First probe, Sepolia WETH `totalSupply()` | Sepolia | [`0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f`](https://sepolia.etherscan.io/tx/0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f) |
 | That probe proven and recorded | CC3 testnet | [`0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668`](https://creditcoin-testnet.blockscout.com/tx/0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668) |
-| `LensRegistry` deployment | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
+| `LensRegistry` deployment, superseded | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
+| `StateProbe` deployment, current | Sepolia | contract `0xC335466ffcac94fCe7820326930888dAA9204a23` |
+| `LensRegistry` deployment, current | CC3 testnet | [`0xf8cdec304aedc50478a4055ab4b0632721388387895b0fd5b88cc1761afc8293`](https://creditcoin-testnet.blockscout.com/tx/0xf8cdec304aedc50478a4055ab4b0632721388387895b0fd5b88cc1761afc8293) |
 
 ### Deployed state, read back from the chain
 
@@ -113,3 +133,18 @@ Creditcoin itself rather than against a stub:
 | `frontierOf(99)`, a chain key this environment does not attest | `UnknownChainKey(99)` |
 
 A valid proof stays valid forever, which is exactly why it has to be spent once.
+
+
+## Not yet done
+
+Listed so this file is a record rather than an advertisement.
+
+| Missing | Consequence |
+|---|---|
+| `HistoryProbe`, `LensComposer`, `CircuitBreaker`, `FeedEscrow` | no historical reads, no medians or ratios, no automatic breaker, no liveness incentive |
+| All four consumers | the platform claim rests on the shim and the registry alone so far |
+| Invariant, symbolic and differential tests | the eight invariants are argued in comments, not enforced by a runner |
+| `LensConsumer` has no test of its own | it compiles and nothing executes it |
+| Contract verification on Blockscout and Sourcify | a reader can call the contracts but cannot read their source on an explorer |
+| Mainnet probe | the address is pinned and the bytecode is fixed, but nothing is deployed there |
+| SDK, indexer, templates, web app | nothing to point a stranger at yet |
