@@ -32,8 +32,21 @@ contract VotePort {
     /// @notice The source-chain token whose checkpoints decide weight.
     address public immutable TOKEN;
 
-    /// @dev `getPastVotes(address,uint256)` — the ERC20Votes accessor.
-    bytes4 private constant GET_PAST_VOTES = 0x3a46b1a8;
+    /**
+     * @notice The token's historical-weight accessor.
+     * @dev Set at construction rather than fixed, because the accessor differs by token
+     *      family: `getPastVotes(address,uint256)` on OpenZeppelin's ERC20Votes,
+     *      `getPriorVotes(address,uint256)` on Compound-style tokens such as UNI and
+     *      COMP. Hardcoding either silently excludes every token in the other family —
+     *      the call reverts, the weight reads as unprovable, and nothing says why.
+     */
+    bytes4 public immutable WEIGHT_SELECTOR;
+
+    /// @notice `getPastVotes(address,uint256)`, for OpenZeppelin's ERC20Votes.
+    bytes4 public constant GET_PAST_VOTES = 0x3a46b1a8;
+
+    /// @notice `getPriorVotes(address,uint256)`, for Compound-style tokens.
+    bytes4 public constant GET_PRIOR_VOTES = 0x782d6fe1;
 
     struct Proposal {
         string description;
@@ -67,12 +80,22 @@ contract VotePort {
     error ProofFailed();
     error NoSuchProposal(uint256 id);
 
-    constructor(LensRegistry registry, uint64 chainKey, address token, uint256 maxAgeBlocks) {
+    error SelectorRequired();
+
+    constructor(
+        LensRegistry registry,
+        uint64 chainKey,
+        address token,
+        bytes4 weightSelector,
+        uint256 maxAgeBlocks
+    ) {
         if (address(registry) == address(0)) revert RegistryRequired();
         if (token == address(0)) revert TokenRequired();
+        if (weightSelector == bytes4(0)) revert SelectorRequired();
         LENS = registry;
         CHAIN_KEY = chainKey;
         TOKEN = token;
+        WEIGHT_SELECTOR = weightSelector;
         MAX_AGE_BLOCKS = maxAgeBlocks;
     }
 
@@ -83,13 +106,13 @@ contract VotePort {
      *      identifier commits to the token, the account and the block together.
      */
     function weightFeedId(address account, uint256 snapshotBlock) public view returns (bytes32) {
-        bytes memory callData = abi.encodeWithSelector(GET_PAST_VOTES, account, snapshotBlock);
+        bytes memory callData = abi.encodeWithSelector(WEIGHT_SELECTOR, account, snapshotBlock);
         return LENS.feedIdFromCallHash(CHAIN_KEY, TOKEN, keccak256(callData));
     }
 
     /// @notice The calldata a prober must use, so there is no guesswork.
-    function weightCallData(address account, uint256 snapshotBlock) external pure returns (bytes memory) {
-        return abi.encodeWithSelector(GET_PAST_VOTES, account, snapshotBlock);
+    function weightCallData(address account, uint256 snapshotBlock) external view returns (bytes memory) {
+        return abi.encodeWithSelector(WEIGHT_SELECTOR, account, snapshotBlock);
     }
 
     /**

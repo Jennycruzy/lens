@@ -269,7 +269,7 @@ contract VotePortTest is ConsumerRig {
 
     function setUp() public {
         _setUpRig();
-        port = new VotePort(registry, KEY, TOKEN, 1000);
+        port = new VotePort(registry, KEY, TOKEN, 0x3a46b1a8, 1000);
         snapshot = FRONTIER - 200;
     }
 
@@ -612,5 +612,53 @@ contract LensMarketDecimalsTest is Test {
         assertLt(eight.healthFactor(alice), 1e18, "liquidatable at $1200");
         assertLt(eighteen.healthFactor(alice), 1e18, "and equally so in the other unit");
         assertEq(eight.healthFactor(alice), eighteen.healthFactor(alice));
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * @notice The accessor a token family uses is not universal, and choosing one for
+ *         everybody excludes the rest silently: the call simply reverts and the weight
+ *         reads as unprovable with nothing to say why.
+ */
+contract VotePortSelectorTest is ConsumerRig {
+    address constant COMPOUND_STYLE = address(0x0271);
+    address constant OZ_STYLE = address(0x02E4);
+    address alice = address(0xA11CE06);
+
+    function setUp() public {
+        _setUpRig();
+    }
+
+    function test_bothTokenFamiliesAreSupported() public {
+        VotePort compound = new VotePort(registry, KEY, COMPOUND_STYLE, 0x782d6fe1, 1000);
+        VotePort oz = new VotePort(registry, KEY, OZ_STYLE, 0x3a46b1a8, 1000);
+
+        assertEq(compound.WEIGHT_SELECTOR(), bytes4(0x782d6fe1), "getPriorVotes, as UNI and COMP use");
+        assertEq(oz.WEIGHT_SELECTOR(), bytes4(0x3a46b1a8), "getPastVotes, as ERC20Votes uses");
+
+        // The calldata each one asks a prober for differs, which is the whole point.
+        assertTrue(
+            keccak256(compound.weightCallData(alice, FRONTIER - 100))
+                != keccak256(oz.weightCallData(alice, FRONTIER - 100)),
+            "a different accessor is a different question"
+        );
+    }
+
+    function test_aCompoundStyleTokenVotesThroughGetPriorVotes() public {
+        VotePort port = new VotePort(registry, KEY, COMPOUND_STYLE, 0x782d6fe1, 1000);
+        uint256 snapshot = FRONTIER - 200;
+        uint256 id = port.propose("compound-style weight", snapshot, 3 days);
+
+        _record(COMPOUND_STYLE, port.weightCallData(alice, snapshot), FRONTIER - 10, 4200e18);
+
+        vm.prank(alice);
+        assertEq(port.castVote(id, true), 4200e18, "weight read through getPriorVotes");
+    }
+
+    function test_theSelectorCannotBeLeftUnset() public {
+        vm.expectRevert(VotePort.SelectorRequired.selector);
+        new VotePort(registry, KEY, COMPOUND_STYLE, bytes4(0), 1000);
     }
 }
