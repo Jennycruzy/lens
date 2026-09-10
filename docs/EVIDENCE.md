@@ -9,6 +9,7 @@ plan; each row is on a public chain and can be checked without asking us.
 |---|---|---|---|
 | `StateProbe` | Ethereum Sepolia (chain key 1) | [`0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe`](https://sepolia.etherscan.io/address/0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe) | live, 1,042 bytes |
 | `StateProbe` | Ethereum mainnet (chain key 3) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` | same address, awaiting funding |
+| `LensRegistry` | Creditcoin CC3 testnet | [`0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA`](https://creditcoin-testnet.blockscout.com/address/0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA) | live |
 
 The probe is deployed through the standard deterministic deployer with the salt
 `keccak256("lens.state-probe.v1")`, so its address is a property of its bytecode rather
@@ -29,13 +30,38 @@ bytecode lands at the same address, and the registry needs no change.
 | What | Chain | Hash |
 |---|---|---|
 | `StateProbe` deployment | Sepolia | [`0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967`](https://sepolia.etherscan.io/tx/0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967) |
+| `LensRegistry` deployment | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
 
 ### Deployed state, read back from the chain
+
+On the probe, Sepolia:
 
 | Call | Answer |
 |---|---|
 | `MAX_RETURN_BYTES()` | 8192 |
 | `MAX_PROBE_GAS()` | 2000000 |
+
+On the registry, CC3 testnet. These are the interesting ones: a contract on Creditcoin
+answering questions about Ethereum, through the precompile, with no oracle involved.
+
+| Call | Answer |
+|---|---|
+| `frontierOf(3)` — Ethereum mainnet | 25,948,180 |
+| `frontierOf(1)` — Sepolia | 11,676,100 |
+| `frontierOf(99)` — a key that is not attested | reverts `UnknownChainKey` |
+| `MAX_BATCH()` | 10, matching the precompile's limit on queries under one continuity proof |
+| `PROBED_SIGNATURE()` | `0xcc205dbd77fbafc012eccc26fdeae09611101621c9e62bb7de830d156832dbfe` |
+
+The chain-key binding was asserted on-chain by the constructor and can be read back:
+
+| Chain key | Native chain id | Probe |
+|---|---|---|
+| 3 | 1 (Ethereum mainnet) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` |
+| 1 | 11155111 (Sepolia) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` |
+
+The registry refused to deploy until those keys matched what ChainInfo reports for this
+environment, so a deployment pointed at the wrong environment fails at construction
+rather than reporting the wrong chain's state.
 
 ## Measured
 
