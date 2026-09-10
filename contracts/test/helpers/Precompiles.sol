@@ -13,14 +13,14 @@ import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.s
  *      attested. The real precompile is exercised separately against CC3 testnet.
  */
 contract ChainInfoStub is IChainInfo {
-    mapping(uint64 => ChainInfoResult) private _chains;
+    mapping(uint64 => ChainInfo) private _chains;
     mapping(uint64 => HeightHash) private _latest;
     mapping(uint64 => uint64) private _genesis;
     uint64[] private _keys;
 
     function setChain(uint64 chainKey, uint64 chainId, string memory name) external {
         if (_chains[chainKey].chainId == 0) _keys.push(chainKey);
-        _chains[chainKey] = ChainInfoResult(chainKey, chainId, bytes(name), 1);
+        _chains[chainKey] = ChainInfo(chainKey, chainId, bytes(name), 1);
     }
 
     function setFrontier(uint64 chainKey, uint64 height, bool exists) external {
@@ -31,13 +31,13 @@ contract ChainInfoStub is IChainInfo {
         _genesis[chainKey] = height;
     }
 
-    function get_supported_chains() external view returns (ChainInfoResult[] memory out) {
-        out = new ChainInfoResult[](_keys.length);
+    function get_supported_chains() external view returns (ChainInfo[] memory out) {
+        out = new ChainInfo[](_keys.length);
         for (uint256 i = 0; i < _keys.length; ++i) out[i] = _chains[_keys[i]];
     }
 
     function get_chain_by_key(uint64 chainKey) external view returns (ChainInfoResult memory) {
-        return _chains[chainKey];
+        return ChainInfoResult(_chains[chainKey], _chains[chainKey].chainId != 0);
     }
 
     function get_latest_attestation_height_and_hash(uint64 chainKey) external view returns (HeightHash memory) {

@@ -20,11 +20,20 @@ pragma solidity 0.8.30;
  *      the same thing everywhere.
  */
 interface IChainInfo {
-    struct ChainInfoResult {
+    struct ChainInfo {
         uint64 chainKey;
         uint64 chainId;
         bytes chainName;
         uint8 chainEncoding;
+    }
+
+    /// @dev `get_chain_by_key` wraps the struct with a presence flag, while
+    ///      `get_supported_chains` returns the bare struct. The two are easy to
+    ///      conflate and the ABI decoder gives nothing useful when they are: a
+    ///      constructor that reads the wrong shape reverts with no data at all.
+    struct ChainInfoResult {
+        ChainInfo info;
+        bool exists;
     }
 
     struct HeightHash {
@@ -39,7 +48,7 @@ interface IChainInfo {
         bool exists;
     }
 
-    function get_supported_chains() external view returns (ChainInfoResult[] memory chains);
+    function get_supported_chains() external view returns (ChainInfo[] memory chains);
 
     function get_chain_by_key(uint64 chainKey) external view returns (ChainInfoResult memory);
 

@@ -123,14 +123,14 @@ contract LensRegistry {
             if (probes[i] == address(0)) revert ProbeAddressRequired(key);
 
             IChainInfo.ChainInfoResult memory live = CHAIN_INFO.get_chain_by_key(key);
-            if (live.chainKey != key || live.chainId == 0) revert ChainKeyNotAttested(key);
-            if (live.chainId != chainIds[i]) {
-                revert ChainKeyMeansADifferentChain(key, chainIds[i], live.chainId);
+            if (!live.exists || live.info.chainKey != key) revert ChainKeyNotAttested(key);
+            if (live.info.chainId != chainIds[i]) {
+                revert ChainKeyMeansADifferentChain(key, chainIds[i], live.info.chainId);
             }
 
-            _sources[key] = Source({chainId: live.chainId, probe: probes[i], registered: true});
+            _sources[key] = Source({chainId: live.info.chainId, probe: probes[i], registered: true});
             _chainKeys.push(key);
-            emit SourceRegistered(key, live.chainId, probes[i]);
+            emit SourceRegistered(key, live.info.chainId, probes[i]);
         }
     }
 
