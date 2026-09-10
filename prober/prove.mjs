@@ -17,9 +17,14 @@ import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with {
 
 const [txHash, chainIdArg] = process.argv.slice(2);
 if (!txHash || !chainIdArg) {
-  console.error('usage: node prober/prove.mjs <source-tx-hash> <source-chain-id>');
+  console.error('usage: node prober/prove.mjs <source-tx-hash> <source-chain-id> [--claim <feedId>]');
   process.exit(2);
 }
+// Routing through the escrow instead of straight to the registry: the escrow submits the
+// same proof and pays the caller for it in the same transaction, so an earned fee cannot
+// be taken by somebody else between proving and claiming.
+const claimIndex = process.argv.indexOf('--claim');
+const claimFeedId = claimIndex === -1 ? null : process.argv[claimIndex + 1];
 const chainId = Number(chainIdArg);
 const chainKey = await chainKeyFor(chainId);
 const provider = sourceProvider(chainId);
@@ -103,7 +108,8 @@ if (!txBytes || !merkleProof || !continuityProof) {
 
 console.log(`  transaction bytes ${(txBytes.length - 2) / 2}, merkle siblings ${merkleProof.siblings.length}, continuity roots ${continuityProof.roots.length}`);
 
-const registry = registryContract(creditcoinWallet());
+const wallet = creditcoinWallet();
+const registry = registryContract(wallet);
 const args = [
   chainKey,
   body.headerNumber ?? height,
@@ -114,11 +120,36 @@ const args = [
 
 // Call before estimating. Creditcoin returns a bare revert with no data from
 // eth_estimateGas, so an estimate that fails says nothing about why.
+if (claimFeedId && !env.LENS_ESCROW) {
+  console.error('\n  --claim was given but LENS_ESCROW is missing from .env');
+  process.exit(2);
+}
+
+// Routing through the escrow rather than straight to the registry. The escrow submits
+// the same proof and pays the caller in the same transaction, so a fee that was earned
+// cannot be taken by somebody else between proving and claiming.
+const escrow = claimFeedId
+  ? new Contract(
+      env.LENS_ESCROW,
+      [
+        'function submitAndClaim(uint64,uint64,bytes,(bytes32,(bytes32,bool)[]),(bytes32,bytes32[]),bytes32) returns (uint256,uint256)',
+        'function payableNow(bytes32,uint64) view returns (uint256)',
+      ],
+      wallet,
+    )
+  : null;
+
 try {
-  const would = await registry.submitProof.staticCall(...args);
-  console.log(`  submission would record ${would} observation(s)`);
+  if (escrow) {
+    const offered = await escrow.payableNow(claimFeedId, args[1]);
+    const [recorded, paid] = await escrow.submitAndClaim.staticCall(...args, claimFeedId);
+    console.log(`  through the escrow: would record ${recorded} and pay ${paid} wei (offered ${offered})`);
+  } else {
+    const would = await registry.submitProof.staticCall(...args);
+    console.log(`  submission would record ${would} observation(s)`);
+  }
 } catch (e) {
-  console.error('\n  the registry rejected this proof');
+  console.error(`\n  the ${escrow ? 'escrow' : 'registry'} rejected this proof`);
   console.error('  ' + describeRevert(e));
   process.exit(1);
 }
@@ -131,6 +162,7 @@ try {
  * anyone which of the registry's checks refused, which is the only thing worth knowing.
  */
 function describeRevert(e) {
+  // The escrow's own errors are worth naming too, not just the registry's.
   const data = e.data ?? e.info?.error?.data ?? e.error?.data;
   if (!data || data === '0x') return e.shortMessage ?? e.message;
   try {
@@ -147,7 +179,9 @@ function describeRevert(e) {
   return `unrecognised revert, selector ${data.slice(0, 10)}, data ${data}`;
 }
 
-const tx = await registry.submitProof(...args, { gasLimit: 3_000_000 });
+const tx = escrow
+  ? await escrow.submitAndClaim(...args, claimFeedId, { gasLimit: 4_000_000 })
+  : await registry.submitProof(...args, { gasLimit: 3_000_000 });
 console.log(`  sent ${tx.hash}`);
 const submitted = await tx.wait();
 console.log(`  recorded in Creditcoin block ${submitted.blockNumber}, ${submitted.gasUsed} gas\n`);
