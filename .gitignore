@@ -6,3 +6,4 @@ broadcast/*/dry-run/
 .env.*
 !.env.example
 docs/evidence/*.raw.json
+lib/
