@@ -8,8 +8,7 @@ import {CircuitBreaker} from "../../src/CircuitBreaker.sol";
 import {MedianFeed, RatioFeed} from "../../src/LensComposer.sol";
 import {ILensFeed} from "../../src/interfaces/ILensFeed.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {NativeQueryVerifierLib} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {ChainInfoStub, VerifierStub} from "../helpers/Precompiles.sol";
 import {EscrowHandler} from "./EscrowHandler.sol";
 

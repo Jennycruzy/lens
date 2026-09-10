@@ -2,8 +2,7 @@
 pragma solidity 0.8.30;
 
 import {IChainInfo} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 
 /**
@@ -33,7 +32,9 @@ contract ChainInfoStub is IChainInfo {
 
     function get_supported_chains() external view returns (ChainInfo[] memory out) {
         out = new ChainInfo[](_keys.length);
-        for (uint256 i = 0; i < _keys.length; ++i) out[i] = _chains[_keys[i]];
+        for (uint256 i = 0; i < _keys.length; ++i) {
+            out[i] = _chains[_keys[i]];
+        }
     }
 
     function get_chain_by_key(uint64 chainKey) external view returns (ChainInfoResult memory) {
@@ -109,7 +110,8 @@ library TxFixture {
         returns (bytes memory)
     {
         bytes[] memory chunks = new bytes[](3);
-        chunks[0] = abi.encode(uint64(1), uint64(100000), address(0xBEEF), false, address(0xCAFE), uint256(0), bytes(""));
+        chunks[0] =
+            abi.encode(uint64(1), uint64(100000), address(0xBEEF), false, address(0xCAFE), uint256(0), bytes(""));
         chunks[1] = abi.encode(uint128(1 gwei), uint128(2 gwei), new bytes(0), uint8(0), bytes32(0), bytes32(0));
 
         EvmV1Decoder.LogEntryTuple[] memory tuples = new EvmV1Decoder.LogEntryTuple[](logs.length);
@@ -139,8 +141,16 @@ library TxFixture {
 
     function probedLog(Probe memory p) internal pure returns (EvmV1Decoder.LogEntry memory) {
         return probedLog(
-            p.emitter, p.signature, p.target, p.callHash, p.prober,
-            p.success, p.truncated, p.height, p.timestamp, p.returnData
+            p.emitter,
+            p.signature,
+            p.target,
+            p.callHash,
+            p.prober,
+            p.success,
+            p.truncated,
+            p.height,
+            p.timestamp,
+            p.returnData
         );
     }
 

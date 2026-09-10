@@ -5,8 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {LensConsumer} from "../../src/LensConsumer.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {NativeQueryVerifierLib} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {ChainInfoStub, VerifierStub} from "../helpers/Precompiles.sol";
 import {RegistryHandler} from "./RegistryHandler.sol";
 

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {IChainInfo, ChainInfoLib} from "./interfaces/IChainInfo.sol";
 
@@ -196,8 +198,7 @@ contract LensRegistry {
             _consumeQuery(chainKey, blockHeights[i], merkleProofs[i]);
         }
 
-        if (!VERIFIER.verifyAndEmit(chainKey, blockHeights, encodedTransactions, merkleProofs, sharedContinuityProof))
-        {
+        if (!VERIFIER.verifyAndEmit(chainKey, blockHeights, encodedTransactions, merkleProofs, sharedContinuityProof)) {
             revert ProofRejected();
         }
 
@@ -280,8 +281,7 @@ contract LensRegistry {
         EvmV1Decoder.ReceiptFields memory receipt = EvmV1Decoder.decodeReceiptFields(encoded);
         if (receipt.receiptStatus != 1) revert ProbeTransactionReverted(receipt.receiptStatus);
 
-        EvmV1Decoder.LogEntry[] memory logs =
-            EvmV1Decoder.getLogsByEventSignature(receipt, PROBED_SIGNATURE);
+        EvmV1Decoder.LogEntry[] memory logs = EvmV1Decoder.getLogsByEventSignature(receipt, PROBED_SIGNATURE);
         if (logs.length == 0) revert NoProbeLogs();
 
         for (uint256 i = 0; i < logs.length; ++i) {

@@ -5,8 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {RegistryFeed} from "../../src/RegistryFeed.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -62,7 +64,9 @@ contract RegistryFeedTest is Test {
         );
         verifier.setTxIndex(++nonce);
         registry.submitProof(
-            KEY, height, TxFixture.encode(2, 1, logs),
+            KEY,
+            height,
+            TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
                 root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),

@@ -5,8 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {LensConsumer} from "../../src/LensConsumer.sol";
 import {IChainInfo, ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -102,8 +104,7 @@ contract LensConsumerTest is Test {
             height,
             TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode(nonce)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),
             INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: bytes32(0), roots: new bytes32[](0)})
         );

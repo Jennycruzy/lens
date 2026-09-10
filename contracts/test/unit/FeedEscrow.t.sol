@@ -5,8 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {FeedEscrow} from "../../src/FeedEscrow.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -60,7 +62,16 @@ contract FeedEscrowTest is Test {
     function _encodedProbe(uint64 height, uint256 v) internal view returns (bytes memory) {
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, callHash, PROBER, true, false, height, SOURCE_TIME, abi.encode(v)
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            TARGET,
+            callHash,
+            PROBER,
+            true,
+            false,
+            height,
+            SOURCE_TIME,
+            abi.encode(v)
         );
         return TxFixture.encode(2, 1, logs);
     }
@@ -68,8 +79,7 @@ contract FeedEscrowTest is Test {
     function _proof() internal returns (INativeQueryVerifier.MerkleProof memory) {
         verifier.setTxIndex(++nonce);
         return INativeQueryVerifier.MerkleProof({
-            root: keccak256(abi.encode(nonce)),
-            siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+            root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
         });
     }
 
@@ -173,9 +183,7 @@ contract FeedEscrowTest is Test {
     function test_funderCannotWithdrawInsideTheTimelock() public {
         vm.startPrank(funder);
         escrow.fund{value: 1 ether}(feedId, 0.1 ether, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(FeedEscrow.StillTimelocked.selector, uint64(block.timestamp + 3 days))
-        );
+        vm.expectRevert(abi.encodeWithSelector(FeedEscrow.StillTimelocked.selector, uint64(block.timestamp + 3 days)));
         escrow.refund(feedId);
         vm.stopPrank();
     }

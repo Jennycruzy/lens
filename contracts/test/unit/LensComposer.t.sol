@@ -53,9 +53,8 @@ contract LensComposerTest is Test {
     // --- median ---------------------------------------------------------------
 
     function test_takesTheMiddleValue() public {
-        MedianFeed m = new MedianFeed(
-            _feeds(new StubFeed(100, 5), new StubFeed(300, 5), new StubFeed(200, 5)), 2, "median"
-        );
+        MedianFeed m =
+            new MedianFeed(_feeds(new StubFeed(100, 5), new StubFeed(300, 5), new StubFeed(200, 5)), 2, "median");
         (uint256 v,) = m.read();
         assertEq(v, 200, "sorted middle, not the input order");
     }
@@ -81,9 +80,8 @@ contract LensComposerTest is Test {
 
     /// The property the invariant suite also enforces.
     function test_ageIsTheStalestInputNotTheAverage() public {
-        MedianFeed m = new MedianFeed(
-            _feeds(new StubFeed(100, 2), new StubFeed(200, 900), new StubFeed(300, 5)), 2, "median"
-        );
+        MedianFeed m =
+            new MedianFeed(_feeds(new StubFeed(100, 2), new StubFeed(200, 900), new StubFeed(300, 5)), 2, "median");
         (, uint256 age) = m.read();
         assertEq(age, 900, "a derived value is as old as its oldest input");
     }
@@ -181,9 +179,7 @@ contract LensComposerTest is Test {
     }
 
     function testFuzz_medianIsNeverFresherThanItsStalestInput(uint32 a, uint32 b, uint32 c) public {
-        MedianFeed m = new MedianFeed(
-            _feeds(new StubFeed(1, a), new StubFeed(2, b), new StubFeed(3, c)), 3, "median"
-        );
+        MedianFeed m = new MedianFeed(_feeds(new StubFeed(1, a), new StubFeed(2, b), new StubFeed(3, c)), 3, "median");
         (, uint256 age) = m.read();
         uint256 worst = a > b ? a : b;
         if (c > worst) worst = c;

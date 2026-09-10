@@ -9,10 +9,7 @@ interface IUniswapV3Pool {
         external
         view
         returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s);
-    function slot0()
-        external
-        view
-        returns (uint160, int24, uint16, uint16, uint16, uint8, bool);
+    function slot0() external view returns (uint160, int24, uint16, uint16, uint16, uint8, bool);
 }
 
 interface IERC20 {

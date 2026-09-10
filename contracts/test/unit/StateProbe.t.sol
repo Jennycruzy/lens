@@ -68,7 +68,14 @@ contract StateProbeTest is Test {
         bytes memory data = abi.encodeCall(Value.answer, ());
         vm.expectEmit(true, true, true, true);
         emit Probed(
-            address(value), keccak256(data), address(this), true, false, block.number, block.timestamp, abi.encode(uint256(42))
+            address(value),
+            keccak256(data),
+            address(this),
+            true,
+            false,
+            block.number,
+            block.timestamp,
+            abi.encode(uint256(42))
         );
         probe.probe(address(value), data);
     }
@@ -97,7 +104,8 @@ contract StateProbeTest is Test {
         vm.recordLogs();
         probe.probe(address(bomb), hex"11223344");
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (bool success, bool truncated,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
+        (bool success, bool truncated,,, bytes memory ret) =
+            abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertTrue(success);
         assertTrue(truncated, "must flag truncation");
         assertEq(ret.length, probe.MAX_RETURN_BYTES(), "copy is capped");

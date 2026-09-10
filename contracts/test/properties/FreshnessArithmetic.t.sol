@@ -5,8 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {RegistryFeed} from "../../src/RegistryFeed.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -62,12 +64,22 @@ contract FreshnessArithmeticTest is Test {
         chainInfo.setFrontier(KEY, frontier, true);
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, callHash, address(0xB0B),
-            true, false, height, SOURCE_TIME, abi.encode(uint256(1))
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            TARGET,
+            callHash,
+            address(0xB0B),
+            true,
+            false,
+            height,
+            SOURCE_TIME,
+            abi.encode(uint256(1))
         );
         verifier.setTxIndex(++nonce);
         registry.submitProof(
-            KEY, height, TxFixture.encode(2, 1, logs),
+            KEY,
+            height,
+            TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
                 root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),
@@ -168,9 +180,7 @@ contract FreshnessArithmeticTest is Test {
 
     /// The whole space, randomly: age is the clamped difference and nothing else, and a
     /// value is served if and only if that difference is within the caller's bound.
-    function testFuzz_ageIsTheClampedDifferenceAndGatesTheRead(uint64 frontier, uint64 height, uint64 maxAge)
-        public
-    {
+    function testFuzz_ageIsTheClampedDifferenceAndGatesTheRead(uint64 frontier, uint64 height, uint64 maxAge) public {
         height = uint64(bound(height, 1, type(uint64).max - 1));
         RegistryFeed feed = _feed(maxAge);
         _record(height, height); // record while the frontier admits it

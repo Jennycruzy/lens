@@ -55,15 +55,9 @@ interface IChainInfo {
     /// @notice Highest block of `chainKey` that Creditcoin has attested.
     /// @dev When `exists` is false nothing has been attested for the chain and the
     ///      other fields carry no meaning.
-    function get_latest_attestation_height_and_hash(uint64 chainKey)
-        external
-        view
-        returns (HeightHash memory);
+    function get_latest_attestation_height_and_hash(uint64 chainKey) external view returns (HeightHash memory);
 
-    function get_latest_checkpoint_height_and_hash(uint64 chainKey)
-        external
-        view
-        returns (HeightHash memory);
+    function get_latest_checkpoint_height_and_hash(uint64 chainKey) external view returns (HeightHash memory);
 
     /// @notice Lowest block of `chainKey` that can be proven at all.
     function get_attestation_genesis_height(uint64 chainKey) external view returns (uint64);

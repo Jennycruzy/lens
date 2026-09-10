@@ -6,8 +6,10 @@ import {LensRegistry} from "../../src/LensRegistry.sol";
 import {LensAggregatorV3} from "../../src/LensAggregatorV3.sol";
 import {AggregatorV3Interface} from "../../src/interfaces/AggregatorV3Interface.sol";
 import {IChainInfo, ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -83,7 +85,15 @@ contract LensAggregatorV3Test is Test {
     function _record(uint64 height, int256 answer, bool ok, bool truncated, uint64 sourceTime) internal {
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, callHash, PROBER, ok, truncated, height, sourceTime,
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            TARGET,
+            callHash,
+            PROBER,
+            ok,
+            truncated,
+            height,
+            sourceTime,
             truncated ? new bytes(64) : abi.encode(answer)
         );
         verifier.setTxIndex(++nextRoot);
@@ -92,8 +102,7 @@ contract LensAggregatorV3Test is Test {
             height,
             TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode(nextRoot)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode(nextRoot)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),
             INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: bytes32(0), roots: new bytes32[](0)})
         );
@@ -130,9 +139,7 @@ contract LensAggregatorV3Test is Test {
     /// Chainlink hands back a stale round and hopes the caller checks. This does not.
     function test_staleFeedRevertsInsteadOfReturningAnOldRound() public {
         _record(FRONTIER - (uint64(MAX_AGE) + 1), 2467_03000000, true, false, SOURCE_TIME);
-        vm.expectRevert(
-            abi.encodeWithSelector(LensAggregatorV3.FeedStale.selector, feedId, MAX_AGE + 1, MAX_AGE)
-        );
+        vm.expectRevert(abi.encodeWithSelector(LensAggregatorV3.FeedStale.selector, feedId, MAX_AGE + 1, MAX_AGE));
         aggregator.latestRoundData();
     }
 

@@ -5,8 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {CircuitBreaker} from "../../src/CircuitBreaker.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -55,11 +57,22 @@ contract CircuitBreakerTest is Test {
     function _record(uint64 height, uint256 v) internal {
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, callHash, PROBER, true, false, height, SOURCE_TIME, abi.encode(v)
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            TARGET,
+            callHash,
+            PROBER,
+            true,
+            false,
+            height,
+            SOURCE_TIME,
+            abi.encode(v)
         );
         verifier.setTxIndex(++nonce);
         registry.submitProof(
-            KEY, height, TxFixture.encode(2, 1, logs),
+            KEY,
+            height,
+            TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
                 root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),

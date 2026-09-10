@@ -13,8 +13,10 @@ import {LensMarket} from "../../src/consumers/LensMarket.sol";
 import {VotePort} from "../../src/consumers/VotePort.sol";
 import {SnapshotProver} from "../../src/consumers/SnapshotProver.sol";
 import {ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -58,12 +60,22 @@ abstract contract ConsumerRig is Test {
     function _record(address target, bytes memory callData, uint64 height, uint256 value) internal {
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), target, keccak256(callData), PROBER,
-            true, false, height, SOURCE_TIME, abi.encode(value)
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            target,
+            keccak256(callData),
+            PROBER,
+            true,
+            false,
+            height,
+            SOURCE_TIME,
+            abi.encode(value)
         );
         verifier.setTxIndex(++nonce);
         registry.submitProof(
-            KEY, height, TxFixture.encode(2, 1, logs),
+            KEY,
+            height,
+            TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
                 root: keccak256(abi.encode(nonce)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),
@@ -72,7 +84,8 @@ abstract contract ConsumerRig is Test {
     }
 
     function _feed(address target, bytes memory callData, uint256 maxAge) internal returns (RegistryFeed) {
-        return new RegistryFeed(registry, KEY, registry.feedIdFromCallHash(KEY, target, keccak256(callData)), maxAge, "f");
+        return
+            new RegistryFeed(registry, KEY, registry.feedIdFromCallHash(KEY, target, keccak256(callData)), maxAge, "f");
     }
 }
 

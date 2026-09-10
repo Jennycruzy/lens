@@ -103,9 +103,7 @@ contract MedianFeed is ILensFeed {
 
         // An even count averages the middle pair, which is the ordinary convention and
         // avoids favouring either side arbitrarily.
-        value = count % 2 == 1
-            ? values[count / 2]
-            : (values[count / 2 - 1] + values[count / 2]) / 2;
+        value = count % 2 == 1 ? values[count / 2] : (values[count / 2 - 1] + values[count / 2]) / 2;
 
         return (true, value, stalest);
     }

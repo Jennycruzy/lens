@@ -4,8 +4,7 @@ pragma solidity 0.8.30;
 import {CommonBase} from "forge-std/Base.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -36,9 +35,7 @@ contract RegistryHandler is CommonBase, StdUtils {
     uint64 private salt;
 
     /// Feeds the handler cycles through, so several are live at once.
-    bytes32[4] public callHashes = [
-        keccak256("feed.a"), keccak256("feed.b"), keccak256("feed.c"), keccak256("feed.d")
-    ];
+    bytes32[4] public callHashes = [keccak256("feed.a"), keccak256("feed.b"), keccak256("feed.c"), keccak256("feed.d")];
 
     // What the handler believes, tracked independently of the registry.
     mapping(bytes32 => uint256) public expectedHeight;

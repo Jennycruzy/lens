@@ -2,8 +2,7 @@
 pragma solidity 0.8.30;
 
 import {LensRegistry} from "./LensRegistry.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 
 /**
  * @title FeedEscrow

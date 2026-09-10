@@ -77,13 +77,7 @@ contract CircuitBreaker {
     error AnswerTruncated(bytes32 feedId);
     error AnswerWrongWidth(uint256 length);
 
-    constructor(
-        LensRegistry registry,
-        uint64 chainKey,
-        bytes32 feedId,
-        uint256 maxDeviationBps,
-        uint256 maxAgeBlocks
-    ) {
+    constructor(LensRegistry registry, uint64 chainKey, bytes32 feedId, uint256 maxDeviationBps, uint256 maxAgeBlocks) {
         if (address(registry) == address(0)) revert RegistryRequired();
         if (maxDeviationBps == 0) revert DeviationBoundRequired();
         LENS = registry;

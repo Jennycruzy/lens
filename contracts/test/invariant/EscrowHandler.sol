@@ -5,8 +5,7 @@ import {CommonBase} from "forge-std/Base.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {FeedEscrow} from "../../src/FeedEscrow.sol";
-import {INativeQueryVerifier} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {INativeQueryVerifier} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -58,16 +57,25 @@ contract EscrowHandler is CommonBase, StdUtils {
 
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, CALL_HASH, address(this),
-            true, false, height, uint256(height) * 12, abi.encode(uint256(height))
+            PROBE,
+            registry.PROBED_SIGNATURE(),
+            TARGET,
+            CALL_HASH,
+            address(this),
+            true,
+            false,
+            height,
+            uint256(height) * 12,
+            abi.encode(uint256(height))
         );
         verifier.setTxIndex(++salt);
 
         try escrow.submitAndClaim(
-            KEY, height, TxFixture.encode(2, 1, logs),
+            KEY,
+            height,
+            TxFixture.encode(2, 1, logs),
             INativeQueryVerifier.MerkleProof({
-                root: keccak256(abi.encode("r", salt)),
-                siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+                root: keccak256(abi.encode("r", salt)), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
             }),
             INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: bytes32(0), roots: new bytes32[](0)}),
             FEED

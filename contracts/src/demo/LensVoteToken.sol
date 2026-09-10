@@ -35,10 +35,7 @@ contract LensVoteToken is ERC20, ERC20Permit, ERC20Votes {
 
     error AlreadyClaimed(address who);
 
-    constructor(address initialHolder, uint256 initialSupply)
-        ERC20("Lens Vote", "LVOTE")
-        ERC20Permit("Lens Vote")
-    {
+    constructor(address initialHolder, uint256 initialSupply) ERC20("Lens Vote", "LVOTE") ERC20Permit("Lens Vote") {
         _mint(initialHolder, initialSupply);
     }
 

@@ -81,11 +81,7 @@ abstract contract LensConsumer {
      * @return age  Age in source-chain blocks, reported even when refusing, so a caller
      *              can log or degrade rather than guess.
      */
-    function _tryLatest(bytes32 id, uint256 maxAge)
-        internal
-        view
-        returns (bool ok, bytes memory data, uint256 age)
-    {
+    function _tryLatest(bytes32 id, uint256 maxAge) internal view returns (bool ok, bytes memory data, uint256 age) {
         (ok, data, age,) = _read(id, maxAge);
     }
 

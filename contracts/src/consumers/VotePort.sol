@@ -82,13 +82,7 @@ contract VotePort {
 
     error SelectorRequired();
 
-    constructor(
-        LensRegistry registry,
-        uint64 chainKey,
-        address token,
-        bytes4 weightSelector,
-        uint256 maxAgeBlocks
-    ) {
+    constructor(LensRegistry registry, uint64 chainKey, address token, bytes4 weightSelector, uint256 maxAgeBlocks) {
         if (address(registry) == address(0)) revert RegistryRequired();
         if (token == address(0)) revert TokenRequired();
         if (weightSelector == bytes4(0)) revert SelectorRequired();
