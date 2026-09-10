@@ -10,6 +10,7 @@ plan; each row is on a public chain and can be checked without asking us.
 | `StateProbe` | Ethereum Sepolia (chain key 1) | [`0xC335466ffcac94fCe7820326930888dAA9204a23`](https://sepolia.etherscan.io/address/0xC335466ffcac94fCe7820326930888dAA9204a23) | current |
 | `StateProbe` | Ethereum mainnet (chain key 3) | `0xC335466ffcac94fCe7820326930888dAA9204a23` | same address, awaiting funding |
 | `LensRegistry` | Creditcoin CC3 testnet | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://creditcoin-testnet.blockscout.com/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) | current |
+| `LensAggregatorV3`, ETH/USD | Creditcoin CC3 testnet | [`0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5`](https://creditcoin-testnet.blockscout.com/address/0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5) | current |
 
 ### Superseded, and why
 
@@ -146,6 +147,41 @@ Worth stating plainly: this is a Chainlink feed carried onto a chain Chainlink d
 serve, without Chainlink's participation and without anyone being trusted to report it
 honestly. The number is not relayed. The read happened on Sepolia, and the log proving it
 happened was verified by the precompile.
+
+### The two clocks, measured on chain
+
+The probe emits the source-chain time of the read because nothing downstream can recover
+it. Here is why that matters, taken from the live deployment rather than a test:
+
+| | Value | |
+|---|---|---|
+| Sepolia block 11,676,454 timestamp | 1789062012 | 17:40:12 UTC |
+| `sourceTimestamp` recorded on Creditcoin | 1789062012 | 17:40:12 UTC — exact match |
+| `recordedAt`, Creditcoin's own clock | 1789062570 | 17:49:30 UTC |
+| Gap | **558 seconds** | |
+
+A Chainlink-shaped consumer computes age as `block.timestamp - updatedAt`. Had `updatedAt`
+carried Creditcoin's clock, every price would have looked **558 seconds younger than it
+was**, and a staleness check set to nine minutes would have passed on a value nine and a
+half minutes old. The adapter reports the source clock, so the check measures the real
+number.
+
+### A Chainlink feed served through Chainlink's own interface
+
+`LensAggregatorV3` at `0x43E5…0fF5`, read exactly as any lending market reads a price:
+
+| Call | Answer |
+|---|---|
+| `description()` | `sepolia.chainlink.ethUsd` |
+| `decimals()` | 8 |
+| `version()` | 4 |
+| `latestRoundData().answer` | `246703000000` — $2,467.03 per ETH |
+| `latestRoundData().roundId` | 11,676,454 — the source height the read happened at |
+| `latestRoundData().updatedAt` | 1789062012 — the source clock |
+| `ageInBlocks()` | 6 source blocks |
+
+The round id is the source-chain height rather than a counter, which makes a round a
+statement about where on the source chain the value came from.
 
 ### The refusals, on the live chain
 
