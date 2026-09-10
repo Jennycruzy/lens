@@ -1,0 +1,248 @@
+{
+  "generatedAt": "2026-09-10T12:40:44.296Z",
+  "creditcoinHeight": 5463550,
+  "summary": "9/9 checks passed",
+  "chains": [
+    {
+      "chainKey": 3,
+      "chainId": 1,
+      "chainName": "Ethereum",
+      "chainEncoding": 1
+    },
+    {
+      "chainKey": 1,
+      "chainId": 11155111,
+      "chainName": "Sepolia ethereum",
+      "chainEncoding": 1
+    }
+  ],
+  "frontier": {
+    "1": {
+      "chainId": 11155111,
+      "chainName": "Sepolia ethereum",
+      "latestAttestation": 11674960,
+      "latestAttestationHash": "0xab13e8dba7871f300a35b880bae3673d72c914d570b403995e6edf4dd680183f",
+      "attestationExists": true,
+      "latestCheckpoint": 11674800,
+      "checkpointExists": true,
+      "attestationGenesisHeight": 0,
+      "sourceHead": 11675001,
+      "lagBlocks": 41,
+      "lagSeconds": 492
+    },
+    "3": {
+      "chainId": 1,
+      "chainName": "Ethereum",
+      "latestAttestation": 25947010,
+      "latestAttestationHash": "0x6183c9d88d8d9d9316a80c097dc22b49b19eea6133be23f78becdd7cd109dd8e",
+      "attestationExists": true,
+      "latestCheckpoint": 25946900,
+      "checkpointExists": true,
+      "attestationGenesisHeight": 0,
+      "sourceHead": 25947049,
+      "lagBlocks": 39,
+      "lagSeconds": 468
+    }
+  },
+  "results": [
+    {
+      "id": "rpc",
+      "what": "CC3 testnet RPC reachable and is chain 102031",
+      "status": "pass",
+      "detail": "eth_chainId = 102031",
+      "evidence": {
+        "rpc": "https://rpc.cc3-testnet.creditcoin.network",
+        "chainId": 102031,
+        "height": 5463550
+      }
+    },
+    {
+      "id": "chaininfo",
+      "what": "ChainInfo precompile answers get_supported_chains",
+      "status": "pass",
+      "detail": "key 3 -> chainId 1 (Ethereum); key 1 -> chainId 11155111 (Sepolia ethereum)",
+      "evidence": {
+        "address": "0x0000000000000000000000000000000000000fd3",
+        "chains": [
+          {
+            "chainKey": 3,
+            "chainId": 1,
+            "chainName": "Ethereum",
+            "chainEncoding": 1
+          },
+          {
+            "chainKey": 1,
+            "chainId": 11155111,
+            "chainName": "Sepolia ethereum",
+            "chainEncoding": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "chainkey-3",
+      "what": "chain key 3 really is Ethereum mainnet (chainId 1)",
+      "status": "pass",
+      "detail": "runtime says chainId 1 \"Ethereum\"",
+      "evidence": {
+        "claimed": {
+          "chainKey": 3,
+          "chainId": 1,
+          "label": "Ethereum mainnet"
+        },
+        "observed": {
+          "chainKey": 3,
+          "chainId": 1,
+          "chainName": "Ethereum",
+          "chainEncoding": 1
+        }
+      }
+    },
+    {
+      "id": "chainkey-1",
+      "what": "chain key 1 really is Ethereum Sepolia (chainId 11155111)",
+      "status": "pass",
+      "detail": "runtime says chainId 11155111 \"Sepolia ethereum\"",
+      "evidence": {
+        "claimed": {
+          "chainKey": 1,
+          "chainId": 11155111,
+          "label": "Ethereum Sepolia"
+        },
+        "observed": {
+          "chainKey": 1,
+          "chainId": 11155111,
+          "chainName": "Sepolia ethereum",
+          "chainEncoding": 1
+        }
+      }
+    },
+    {
+      "id": "frontier-3",
+      "what": "attestation frontier readable for Ethereum",
+      "status": "pass",
+      "detail": "attested to 25947010, source head 25947049, lag 39 blocks (~468s); provable from height 0",
+      "evidence": {
+        "chainId": 1,
+        "chainName": "Ethereum",
+        "latestAttestation": 25947010,
+        "latestAttestationHash": "0x6183c9d88d8d9d9316a80c097dc22b49b19eea6133be23f78becdd7cd109dd8e",
+        "attestationExists": true,
+        "latestCheckpoint": 25946900,
+        "checkpointExists": true,
+        "attestationGenesisHeight": 0,
+        "sourceHead": 25947049,
+        "lagBlocks": 39,
+        "lagSeconds": 468
+      }
+    },
+    {
+      "id": "frontier-1",
+      "what": "attestation frontier readable for Sepolia ethereum",
+      "status": "pass",
+      "detail": "attested to 11674960, source head 11675001, lag 41 blocks (~492s); provable from height 0",
+      "evidence": {
+        "chainId": 11155111,
+        "chainName": "Sepolia ethereum",
+        "latestAttestation": 11674960,
+        "latestAttestationHash": "0xab13e8dba7871f300a35b880bae3673d72c914d570b403995e6edf4dd680183f",
+        "attestationExists": true,
+        "latestCheckpoint": 11674800,
+        "checkpointExists": true,
+        "attestationGenesisHeight": 0,
+        "sourceHead": 11675001,
+        "lagBlocks": 41,
+        "lagSeconds": 492
+      }
+    },
+    {
+      "id": "blockprover",
+      "what": "BlockProver precompile is live and rejects a forged proof",
+      "status": "pass",
+      "detail": "verify() rejected a bogus proof by reverting: execution reverted: \"Merkle proof validation failed\"",
+      "evidence": {
+        "address": "0x0000000000000000000000000000000000000FD2"
+      }
+    },
+    {
+      "id": "decoder",
+      "what": "Decoder contract is deployed on CC3 testnet",
+      "status": "pass",
+      "detail": "9598 bytes of code at 0x731c345d79Fb8BbDC541f9DF3b6317585F849F9f",
+      "evidence": {
+        "address": "0x731c345d79Fb8BbDC541f9DF3b6317585F849F9f",
+        "codeSize": 9598
+      }
+    },
+    {
+      "id": "proofbuilder",
+      "what": "At least two independent proof builder hosts answer",
+      "status": "pass",
+      "detail": "https://prover.cc3-testnet.creditcoin.network/ -> 200; https://prover.cc3-testnet.creditcoin.network/swagger/index.html -> 404; https://prover.cc3-testnet.creditcoin.network/api-docs -> 404; https://prover.cc3-testnet.creditcoin.network/openapi.json -> 404; https://prover.cc3-testnet.creditcoin.network/health -> 404; https://proof-gen-api.cc3-testnet.creditcoin.network/ -> 200; https://proof-gen-api.cc3-testnet.creditcoin.network/swagger/index.html -> 404; https://proof-gen-api.cc3-testnet.creditcoin.network/api-docs -> 404; https://proof-gen-api.cc3-testnet.creditcoin.network/openapi.json -> 404; https://proof-gen-api.cc3-testnet.creditcoin.network/health -> 404",
+      "evidence": {
+        "probes": [
+          {
+            "host": "https://prover.cc3-testnet.creditcoin.network",
+            "path": "/",
+            "status": 200,
+            "contentType": "text/html"
+          },
+          {
+            "host": "https://prover.cc3-testnet.creditcoin.network",
+            "path": "/swagger/index.html",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://prover.cc3-testnet.creditcoin.network",
+            "path": "/api-docs",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://prover.cc3-testnet.creditcoin.network",
+            "path": "/openapi.json",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://prover.cc3-testnet.creditcoin.network",
+            "path": "/health",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://proof-gen-api.cc3-testnet.creditcoin.network",
+            "path": "/",
+            "status": 200,
+            "contentType": "text/html"
+          },
+          {
+            "host": "https://proof-gen-api.cc3-testnet.creditcoin.network",
+            "path": "/swagger/index.html",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://proof-gen-api.cc3-testnet.creditcoin.network",
+            "path": "/api-docs",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://proof-gen-api.cc3-testnet.creditcoin.network",
+            "path": "/openapi.json",
+            "status": 404,
+            "contentType": null
+          },
+          {
+            "host": "https://proof-gen-api.cc3-testnet.creditcoin.network",
+            "path": "/health",
+            "status": 404,
+            "contentType": null
+          }
+        ]
+      }
+    }
+  ]
+}

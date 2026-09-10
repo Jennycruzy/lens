@@ -1,0 +1,20 @@
+{
+  "name": "lens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Verified cross-chain state on Creditcoin. No oracle, no bridge, no trusted party.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "verify:infra": "node tools/verify-infra.mjs",
+    "build": "forge build",
+    "test": "forge test"
+  },
+  "dependencies": {
+    "@gluwa/asc-contracts": "0.2.1",
+    "@gluwa/usc-sdk": "0.18.0",
+    "@openzeppelin/contracts": "5.4.0",
+    "dotenv": "17.4.2",
+    "ethers": "^6.17.0"
+  }
+}
