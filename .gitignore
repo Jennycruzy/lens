@@ -1,9 +1,9 @@
 node_modules/
 out/
 cache/
-broadcast/*/dry-run/
+broadcast/
 .env
 .env.*
 !.env.example
 docs/evidence/*.raw.json
-lib/
+/lib/

@@ -108,6 +108,25 @@ export const feeds = [
     describe: (v) => `${(Number(v) / 1e18).toLocaleString()} WETH`,
   },
   {
+    // Aave V3 on Sepolia: the WETH actually held against the aWETH issued against it.
+    // A genuine backing relationship rather than an invented one, which is what makes
+    // the solvency ratio worth publishing.
+    name: 'sepolia.aave.wethBacking',
+    chainId: 11155111,
+    target: '0xC558DBdd856501FCd9aaF1E62eae57A9F0629a3c', // WETH used by Aave on Sepolia
+    signature: 'function balanceOf(address) view returns (uint256)',
+    args: ['0x5b071b590a59395fE4025A0Ccc1FcC931AAc1830'], // the aWETH token
+    describe: (v) => `${(Number(v) / 1e18).toLocaleString()} WETH held as backing`,
+  },
+  {
+    name: 'sepolia.aave.awethIssued',
+    chainId: 11155111,
+    target: '0x5b071b590a59395fE4025A0Ccc1FcC931AAc1830',
+    signature: 'function totalSupply() view returns (uint256)',
+    args: [],
+    describe: (v) => `${(Number(v) / 1e18).toLocaleString()} aWETH issued`,
+  },
+  {
     name: 'sepolia.chainlink.ethUsd',
     chainId: 11155111,
     target: '0x694AA1769357215DE4FAC081bf1f309aDC325306',
