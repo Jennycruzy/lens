@@ -73,6 +73,23 @@ every boundary enumerated by hand — reorg distances, the bound at −1/exact/+
 bound, `type(uint64).max` extremes — plus a wide fuzz. That is "tested very hard", not
 "proved", and the difference is real.
 
+## Mainnet feeds cannot be re-checked without archive access
+
+`lens verify` and `tools/differential.mjs` re-read the source contract at the height that
+was proven. Public Ethereum mainnet RPCs do not serve state that far back — a little over
+a hundred blocks was already refused — so those checks come back **inconclusive** for
+mainnet feeds until an archive endpoint is configured in `ETHEREUM_ARCHIVE_RPC`.
+
+Inconclusive is reported as its own outcome and never as a divergence, and it does not
+fail the run. A node declining to answer says nothing about whether the values agree, and
+treating that as a disagreement would be both alarming and false.
+
+Sepolia feeds check normally: its public RPCs serve the depth involved.
+
+The values were byte-equal when they were proven — that comparison happens inside
+`prove.mjs` at submission time, against the same height, and it is recorded in
+`EVIDENCE.md`. What is missing is the ability to re-run it later.
+
 ## Latency figures are a sample, not a distribution
 
 The lag numbers come from a handful of observations across one afternoon and one keeper
