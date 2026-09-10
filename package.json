@@ -21,7 +21,8 @@
     "web:build": "node tools/build-web-config.mjs",
     "web:check": "node tools/build-web-config.mjs --check",
     "web:smoke": "node tools/web-smoke.mjs",
-    "balances": "node tools/balances.mjs"
+    "balances": "node tools/balances.mjs",
+    "check:deployed": "node tools/check-deployed.mjs"
   },
   "dependencies": {
     "@gluwa/asc-contracts": "0.2.1",
