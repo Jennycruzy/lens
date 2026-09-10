@@ -17,14 +17,18 @@ import {
 const broadcast = process.argv.includes('--broadcast');
 const wallet = creditcoinWallet();
 
+/// Foundry keys `out/` by source filename alone, not by path, so a contract declared
+/// in another file is found under that file's name rather than its directory.
 const artifact = (name, file) =>
   JSON.parse(readFileSync(new URL(`../out/${file ?? name + '.sol'}/${name}.json`, import.meta.url)));
 
 const deployed = {};
 
-async function deploy(label, art, args) {
+async function deploy(label, art, argsFn) {
+  const args = argsFn();
   if (!broadcast) {
-    console.log(`  would deploy ${label}`);
+    console.log(`  would deploy ${label.padEnd(26)} ${args.map(String).map((a) => (a.length > 20 ? a.slice(0, 12) + '…' : a)).join('  ')}`);
+    deployed[label] = `0x${label.length.toString(16).padStart(40, '0')}`; // placeholder for the dry run
     return null;
   }
   const factory = new ContractFactory(art.abi, art.bytecode.object, wallet);
@@ -55,36 +59,35 @@ console.log(`  feeds     ethUsd ${ethUsd.slice(0, 12)}…  backing ${backing.sli
 const PRICE_MAX_AGE = 300n; // about an hour of Sepolia
 const RESERVE_MAX_AGE = 900n; // reserves move slowly, so a wider window is honest
 
+if (!addresses.aggregator) throw new Error('LENS_AGGREGATOR_ETHUSD missing from .env');
+
 const R = artifact('RegistryFeed');
-const backingFeed = await deploy('feed: aave backing', R, [addresses.registry, chainKey, backing, RESERVE_MAX_AGE, 'WETH backing aWETH']);
-const issuedFeed = await deploy('feed: aweth issued', R, [addresses.registry, chainKey, issued, RESERVE_MAX_AGE, 'aWETH issued']);
+await deploy('feed.aaveBacking', R, () => [addresses.registry, chainKey, backing, RESERVE_MAX_AGE, 'WETH backing aWETH']);
+await deploy('feed.awethIssued', R, () => [addresses.registry, chainKey, issued, RESERVE_MAX_AGE, 'aWETH issued']);
 
-const ratioArt = artifact('RatioFeed', 'LensComposer.sol');
-const ratio = broadcast
-  ? await deploy('ratio: backing/issued', ratioArt, [deployed['feed: aave backing'], deployed['feed: aweth issued'], 10n ** 18n, 'aWETH backing ratio'])
-  : await deploy('ratio: backing/issued', ratioArt, []);
+await deploy('ratio.backingOverIssued', artifact('RatioFeed', 'LensComposer.sol'),
+  () => [deployed['feed.aaveBacking'], deployed['feed.awethIssued'], 10n ** 18n, 'aWETH backing ratio']);
 
-// 1e18 is exactly covered; a reserve below that is under-collateralised.
-await deploy('ReserveMonitor', artifact('ReserveMonitor', 'consumers/ReserveMonitor.sol'),
-  broadcast ? [deployed['ratio: backing/issued'], 10n ** 18n, 'Aave Sepolia aWETH backing'] : []);
+// 1e18 is exactly covered; below that the reserve does not cover what was issued.
+await deploy('ReserveMonitor', artifact('ReserveMonitor'),
+  () => [deployed['ratio.backingOverIssued'], 10n ** 18n, 'Aave Sepolia aWETH backing']);
 
-const aggregator = addresses.aggregator;
-await deploy('LensMarket', artifact('LensMarket', 'consumers/LensMarket.sol'),
-  // 150% collateral, 10% liquidation bonus, price no older than an hour of wall clock.
-  broadcast ? [aggregator, 15000n, 1000n, 3600n] : []);
+// 150% collateral, 10% liquidation bonus, a price no older than an hour of wall clock.
+await deploy('LensMarket', artifact('LensMarket'),
+  () => [addresses.aggregator, 15000n, 1000n, 3600n]);
 
+// 5% between updates, and a hard age limit twice the aggregator's.
 await deploy('CircuitBreaker', artifact('CircuitBreaker'),
-  // 5% between updates, and a hard age limit twice the aggregator's.
-  broadcast ? [addresses.registry, chainKey, ethUsd, 500n, PRICE_MAX_AGE * 2n] : []);
+  () => [addresses.registry, chainKey, ethUsd, 500n, PRICE_MAX_AGE * 2n]);
 
-await deploy('FeedEscrow', artifact('FeedEscrow'), broadcast ? [addresses.registry] : []);
+await deploy('FeedEscrow', artifact('FeedEscrow'), () => [addresses.registry]);
 
-// The governance consumers point at a source-chain token that keeps checkpoints.
+// The governance consumers read a source-chain token that keeps checkpoints.
 const VOTES_TOKEN = '0x5b071b590a59395fE4025A0Ccc1FcC931AAc1830';
-await deploy('VotePort', artifact('VotePort', 'consumers/VotePort.sol'),
-  broadcast ? [addresses.registry, chainKey, VOTES_TOKEN, 5000n] : []);
-await deploy('SnapshotProver', artifact('SnapshotProver', 'consumers/SnapshotProver.sol'),
-  broadcast ? [addresses.registry, chainKey, 5000n] : []);
+await deploy('VotePort', artifact('VotePort'),
+  () => [addresses.registry, chainKey, VOTES_TOKEN, 5000n]);
+await deploy('SnapshotProver', artifact('SnapshotProver'),
+  () => [addresses.registry, chainKey, 5000n]);
 
 if (!broadcast) {
   console.log('\nnothing sent. re-run with --broadcast to deploy.\n');

@@ -29,6 +29,7 @@ export const artifacts = {
 export const addresses = {
   registry: env.LENS_REGISTRY,
   probe: env.LENS_PROBE,
+  aggregator: env.LENS_AGGREGATOR_ETHUSD,
 };
 
 export const creditcoin = new JsonRpcProvider(env.CC3_TESTNET_RPC, undefined, { staticNetwork: true });
