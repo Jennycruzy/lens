@@ -121,6 +121,29 @@ library TxFixture {
         return abi.encode(txType, chunks);
     }
 
+    /// @dev Ten separate parameters put every caller close to the stack limit, and one
+    ///      extra local in a handler was enough to cross it. Grouping them costs nothing
+    ///      and gives the arguments names at the call site.
+    struct Probe {
+        address emitter;
+        bytes32 signature;
+        address target;
+        bytes32 callHash;
+        address prober;
+        bool success;
+        bool truncated;
+        uint256 height;
+        uint256 timestamp;
+        bytes returnData;
+    }
+
+    function probedLog(Probe memory p) internal pure returns (EvmV1Decoder.LogEntry memory) {
+        return probedLog(
+            p.emitter, p.signature, p.target, p.callHash, p.prober,
+            p.success, p.truncated, p.height, p.timestamp, p.returnData
+        );
+    }
+
     function probedLog(
         address emitter,
         bytes32 signature,

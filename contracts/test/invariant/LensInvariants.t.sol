@@ -141,13 +141,29 @@ contract LensInvariantsTest is Test {
         }
     }
 
-    /// Every query key the handler saw accepted is marked consumed, so none can be
-    /// spent twice.
-    function invariant_acceptedQueriesAreConsumed() public view {
-        assertGe(handler.accepted() + handler.rejected(), handler.accepted());
+    /// Invariant 3: no query is ever verified twice.
+    ///
+    /// Every query key the registry accepted is marked consumed, and the number of keys
+    /// equals the number of accepted submissions — so none was accepted without being
+    /// spent, and none was spent twice.
+    ///
+    /// The earlier version of this asserted `accepted + rejected >= accepted`, which is
+    /// true of any two unsigned numbers and therefore checked nothing at all.
+    function invariant_everyAcceptedQueryIsConsumedExactlyOnce() public view {
+        uint256 n = handler.acceptedKeyCount();
+        assertEq(n, handler.accepted(), "a submission was accepted without consuming a query");
+        for (uint256 i = 0; i < n; ++i) {
+            bytes32 key = handler.acceptedKeys(i);
+            assertTrue(registry.consumed(key), "an accepted query was not marked consumed");
+        }
     }
 
-    function invariant_callSummary() public view {
-        assertGe(handler.accepted() + handler.rejected(), 0);
+    /// And a consumed query can never be spent again, whatever else has happened.
+    function invariant_aConsumedQueryStaysConsumed() public view {
+        uint256 n = handler.acceptedKeyCount();
+        if (n == 0) return;
+        // Spot-check the oldest and newest rather than every key on every run.
+        assertTrue(registry.consumed(handler.acceptedKeys(0)));
+        assertTrue(registry.consumed(handler.acceptedKeys(n - 1)));
     }
 }

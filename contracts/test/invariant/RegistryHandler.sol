@@ -45,6 +45,8 @@ contract RegistryHandler is CommonBase, StdUtils {
     mapping(bytes32 => bool) public expectedFailed;
     mapping(bytes32 => bool) public everRecorded;
     mapping(bytes32 => bool) public queryUsed;
+    /// Every query key the handler saw accepted, so the registry can be held to them.
+    bytes32[] public acceptedKeys;
     uint256 public accepted;
     uint256 public rejected;
 
@@ -54,6 +56,10 @@ contract RegistryHandler is CommonBase, StdUtils {
         verifier = v;
         frontier = startFrontier;
         highWaterFrontier = startFrontier;
+    }
+
+    function acceptedKeyCount() external view returns (uint256) {
+        return acceptedKeys.length;
     }
 
     function feedIdAt(uint256 i) public view returns (bytes32) {
@@ -94,39 +100,59 @@ contract RegistryHandler is CommonBase, StdUtils {
         chainInfo.setFrontier(KEY, frontier, true);
     }
 
+    /// @dev Building the transaction and recording the outcome in one function put it
+    ///      over the stack limit once the accepted keys were tracked, so they are split.
+    function _encodeProbe(uint256 i, uint64 height, bool readSucceeded, bool truncated)
+        private
+        view
+        returns (bytes memory)
+    {
+        EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
+        logs[0] = TxFixture.probedLog(
+            TxFixture.Probe({
+                emitter: PROBE,
+                signature: registry.PROBED_SIGNATURE(),
+                target: TARGET,
+                callHash: callHashes[i],
+                prober: PROBER,
+                success: readSucceeded,
+                truncated: truncated,
+                height: height,
+                timestamp: uint256(height) * 12,
+                returnData: truncated ? new bytes(64) : abi.encode(uint256(height))
+            })
+        );
+        return TxFixture.encode(2, 1, logs);
+    }
+
+    function _remember(uint256 i, uint64 height, bool readSucceeded, bytes32 queryKey) private {
+        bytes32 feedId = registry.feedIdFromCallHash(KEY, TARGET, callHashes[i]);
+        accepted++;
+        queryUsed[queryKey] = true;
+        acceptedKeys.push(queryKey);
+        expectedHeight[feedId] = height;
+        expectedFailed[feedId] = !readSucceeded;
+        everRecorded[feedId] = true;
+    }
+
     function _submit(uint256 i, uint64 height, bool readSucceeded, bool truncated, bool acceptProof, bool reuseSalt)
         private
     {
-        bytes32 callHash = callHashes[i];
-        bytes32 feedId = registry.feedIdFromCallHash(KEY, TARGET, callHash);
-
         if (!reuseSalt) salt++;
-        uint64 txIndex = salt;
-        verifier.setTxIndex(txIndex);
+        verifier.setTxIndex(salt);
         verifier.setAccept(acceptProof);
 
-        bytes32 root = keccak256(abi.encode("root", txIndex));
-        bytes32 queryKey = keccak256(abi.encode(KEY, height, txIndex, root));
-
-        EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
-        logs[0] = TxFixture.probedLog(
-            PROBE, registry.PROBED_SIGNATURE(), TARGET, callHash, PROBER,
-            readSucceeded, truncated, height, uint256(height) * 12,
-            truncated ? new bytes(64) : abi.encode(uint256(height))
-        );
+        bytes32 root = keccak256(abi.encode("root", salt));
+        bytes32 queryKey = keccak256(abi.encode(KEY, height, salt, root));
 
         try registry.submitProof(
             KEY,
             height,
-            TxFixture.encode(2, 1, logs),
+            _encodeProbe(i, height, readSucceeded, truncated),
             INativeQueryVerifier.MerkleProof({root: root, siblings: new INativeQueryVerifier.MerkleProofEntry[](0)}),
             INativeQueryVerifier.ContinuityProof({lowerEndpointDigest: bytes32(0), roots: new bytes32[](0)})
         ) {
-            accepted++;
-            queryUsed[queryKey] = true;
-            expectedHeight[feedId] = height;
-            expectedFailed[feedId] = !readSucceeded;
-            everRecorded[feedId] = true;
+            _remember(i, height, readSucceeded, queryKey);
         } catch {
             rejected++;
         }
