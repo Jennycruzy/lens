@@ -100,8 +100,13 @@ node tools/differential.mjs
 ```
 
 Unit, fork against real mainnet contracts, adversarial (one test per way of getting a
-wrong answer in), invariant (7 properties over 16,384 generated calls), and a differential
-run against live feeds. Coverage is 90.58% of lines across `contracts/src`.
+wrong answer in), invariant (12 properties across four handlers, 16,384 generated calls
+each), property tests over the freshness arithmetic, and a differential run against live
+feeds. Coverage is 90.58% of lines across `contracts/src`.
+
+There are no symbolic proofs: halmos could not be installed here, and the freshness
+arithmetic is covered exhaustively and by fuzz instead. Those are different claims and
+`LIMITS.md` keeps them apart.
 
 **No mocks in any demo path.** The stubs in `contracts/test/helpers` exist to drive the
 registry through states the live network will not hold still for — a rewinding frontier, a
