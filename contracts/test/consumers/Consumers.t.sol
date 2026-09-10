@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {LensAggregatorV3} from "../../src/LensAggregatorV3.sol";
+import {AggregatorV3Interface} from "../../src/interfaces/AggregatorV3Interface.sol";
 import {RegistryFeed} from "../../src/RegistryFeed.sol";
 import {RatioFeed} from "../../src/LensComposer.sol";
 import {ILensFeed} from "../../src/interfaces/ILensFeed.sol";
@@ -490,5 +491,126 @@ contract SnapshotProverTest is ConsumerRig {
         vm.prank(organiser);
         vm.expectRevert();
         prover.open{value: 1 ether}(TOKEN, GET_PAST_VOTES, FRONTIER + 1, 0, 1, 0, 1 days);
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// @dev A feed whose decimals and answer are both settable, so a market can be held to
+///      the same economic position expressed in different units.
+contract FeedWithDecimals is AggregatorV3Interface {
+    uint8 private immutable _decimals;
+    int256 private _answer;
+    uint256 private _updatedAt;
+
+    constructor(uint8 d, int256 answer, uint256 updatedAt_) {
+        _decimals = d;
+        _answer = answer;
+        _updatedAt = updatedAt_;
+    }
+
+    function set(int256 answer) external {
+        _answer = answer;
+    }
+
+    function decimals() external view returns (uint8) {
+        return _decimals;
+    }
+
+    function description() external pure returns (string memory) {
+        return "settable";
+    }
+
+    function version() external pure returns (uint256) {
+        return 4;
+    }
+
+    function latestRoundData() public view returns (uint80, int256, uint256, uint256, uint80) {
+        return (1, _answer, _updatedAt, _updatedAt, 1);
+    }
+
+    function getRoundData(uint80) external view returns (uint80, int256, uint256, uint256, uint80) {
+        return latestRoundData();
+    }
+}
+
+/**
+ * @notice The market must value a position identically however many decimals its feed
+ *         reports. This is the test that distinguishes a correct implementation from one
+ *         that happens to hardcode the eight decimals a USD feed uses: a hardcoded scale
+ *         passes every eight-decimal test and fails here.
+ */
+contract LensMarketDecimalsTest is Test {
+    address alice = address(0xA11CE05);
+
+    function _market(uint8 decimals_, int256 answer) internal returns (LensMarket m) {
+        FeedWithDecimals feed = new FeedWithDecimals(decimals_, answer, block.timestamp);
+        m = new LensMarket(feed, 15000, 1000, 1 hours);
+        vm.deal(address(m), 100 ether);
+    }
+
+    function test_theSamePositionValuesIdenticallyAtEightAndEighteenDecimals() public {
+        // $2000 per unit, expressed twice.
+        LensMarket eight = _market(8, 2000e8);
+        LensMarket eighteen = _market(18, 2000e18);
+
+        vm.deal(alice, 200 ether);
+        vm.startPrank(alice);
+        eight.deposit{value: 10 ether}();
+        eight.borrow(10_000e18);
+        eighteen.deposit{value: 10 ether}();
+        eighteen.borrow(10_000e18);
+        vm.stopPrank();
+
+        uint256 hfEight = eight.healthFactor(alice);
+        uint256 hfEighteen = eighteen.healthFactor(alice);
+
+        assertEq(hfEight, hfEighteen, "the same position must value the same in either unit");
+        // 10 ETH at $2000 is $20,000 against $15,000 required, so 1.333e18.
+        assertApproxEqAbs(hfEight, 1.333e18, 0.001e18, "and the figure must be economically right");
+    }
+
+    function test_aSixDecimalFeedIsAlsoHandled() public {
+        LensMarket six = _market(6, 2000e6);
+        vm.deal(alice, 100 ether);
+        vm.startPrank(alice);
+        six.deposit{value: 10 ether}();
+        six.borrow(10_000e18);
+        vm.stopPrank();
+        assertApproxEqAbs(six.healthFactor(alice), 1.333e18, 0.001e18);
+    }
+
+    function test_priceUnitIsTakenFromTheFeedNotAssumed() public {
+        assertEq(_market(8, 1e8).PRICE_UNIT(), 1e8);
+        assertEq(_market(18, 1e18).PRICE_UNIT(), 1e18);
+        assertEq(_market(6, 1e6).PRICE_UNIT(), 1e6);
+    }
+
+    /// A liquidation must trigger at the same real price whatever units it is quoted in.
+    function test_liquidationTriggersAtTheSameRealPriceInEitherUnit() public {
+        FeedWithDecimals f8 = new FeedWithDecimals(8, 2000e8, block.timestamp);
+        FeedWithDecimals f18 = new FeedWithDecimals(18, 2000e18, block.timestamp);
+        LensMarket eight = new LensMarket(f8, 15000, 1000, 1 hours);
+        LensMarket eighteen = new LensMarket(f18, 15000, 1000, 1 hours);
+        vm.deal(address(eight), 100 ether);
+        vm.deal(address(eighteen), 100 ether);
+
+        vm.deal(alice, 200 ether);
+        vm.startPrank(alice);
+        eight.deposit{value: 10 ether}();
+        eight.borrow(12_000e18);
+        eighteen.deposit{value: 10 ether}();
+        eighteen.borrow(12_000e18);
+        vm.stopPrank();
+
+        assertGe(eight.healthFactor(alice), 1e18);
+        assertGe(eighteen.healthFactor(alice), 1e18);
+
+        f8.set(1200e8);
+        f18.set(1200e18);
+
+        assertLt(eight.healthFactor(alice), 1e18, "liquidatable at $1200");
+        assertLt(eighteen.healthFactor(alice), 1e18, "and equally so in the other unit");
+        assertEq(eight.healthFactor(alice), eighteen.healthFactor(alice));
     }
 }
