@@ -21,7 +21,7 @@ if (!address) throw new Error('LENS_ADDRESS missing from .env');
 // What each chain is for, and roughly what it takes to be useful.
 const chains = [
   { name: 'Creditcoin CC3 testnet', rpc: env.CC3_TESTNET_RPC, symbol: 'tCTC', need: 1n, why: 'deploy the registry, submit proofs' },
-  { name: 'Ethereum Sepolia', rpc: env.SEPOLIA_RPC, symbol: 'SepoliaETH', need: 10n ** 17n, why: 'deploy the probe, run free reads' },
+  { name: 'Ethereum Sepolia', rpc: env.SEPOLIA_RPC, symbol: 'SepoliaETH', need: 2n * 10n ** 16n, why: 'deploy the probe, run free reads' },
   { name: 'Ethereum mainnet', rpc: env.ETHEREUM_RPC, symbol: 'ETH', need: 0n, why: 'optional, real reads cost real gas' },
 ];
 
