@@ -132,7 +132,7 @@ const escrow = claimFeedId
   ? new Contract(
       env.LENS_ESCROW,
       [
-        'function submitAndClaim(uint64,uint64,bytes,(bytes32,(bytes32,bool)[]),(bytes32,bytes32[]),bytes32) returns (uint256,uint256)',
+        'function submitAndClaim(uint64 chainKey,uint64 blockHeight,bytes encodedTransaction,(bytes32 root,(bytes32 hash,bool isLeft)[] siblings) merkleProof,(bytes32 lowerEndpointDigest,bytes32[] roots) continuityProof,bytes32 feedId) returns (uint256 recorded,uint256 paid)',
         'function payableNow(bytes32,uint64) view returns (uint256)',
       ],
       wallet,
