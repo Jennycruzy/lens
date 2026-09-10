@@ -4,8 +4,10 @@ pragma solidity 0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {LensRegistry} from "../../src/LensRegistry.sol";
 import {IChainInfo, ChainInfoLib} from "../../src/interfaces/IChainInfo.sol";
-import {INativeQueryVerifier, NativeQueryVerifierLib} from
-    "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
+import {
+    INativeQueryVerifier,
+    NativeQueryVerifierLib
+} from "@gluwa/asc-contracts/contracts/write-ability/common/INativeQueryVerifier.sol";
 import {EvmV1Decoder} from "@gluwa/asc-contracts/contracts/common/EvmV1Decoder.sol";
 import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol";
 
@@ -84,7 +86,9 @@ contract LensRegistryChecksTest is Test {
     }
 
     function _proof() internal pure returns (INativeQueryVerifier.MerkleProof memory) {
-        return INativeQueryVerifier.MerkleProof({root: keccak256("root"), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)});
+        return INativeQueryVerifier.MerkleProof({
+            root: keccak256("root"), siblings: new INativeQueryVerifier.MerkleProofEntry[](0)
+        });
     }
 
     function _proofWithRoot(bytes32 root) internal pure returns (INativeQueryVerifier.MerkleProof memory) {
@@ -138,13 +142,28 @@ contract LensRegistryChecksTest is Test {
         _submit(FRONTIER - 10, replay, _proof());
     }
 
+    /// Replay protection keys on the query, not the block, so two different transactions
+    /// in one block must both be accepted. Keying on height alone would reject the second
+    /// and silently drop every feed after the first in any busy block.
     function test_twoDistinctQueriesInTheSameBlockBothLand() public {
         verifier.setTxIndex(0);
-        _submit(FRONTIER - 10, _goodTx(FRONTIER - 10, abi.encode(uint256(1))), _proof());
+        bytes32 firstFeed = registry.feedIdFromCallHash(ETHEREUM_KEY, TARGET, callHash);
+        uint256 recordedFirst = _submit(FRONTIER - 10, _goodTx(FRONTIER - 10, abi.encode(uint256(1))), _proof());
+
         // A different transaction in the same block has a different index and root.
         verifier.setTxIndex(7);
         callHash = keccak256(hex"9999");
-        _submit(FRONTIER - 10, _goodTx(FRONTIER - 10, abi.encode(uint256(2))), _proofWithRoot(keccak256("other")));
+        bytes32 secondFeed = registry.feedIdFromCallHash(ETHEREUM_KEY, TARGET, callHash);
+        uint256 recordedSecond =
+            _submit(FRONTIER - 10, _goodTx(FRONTIER - 10, abi.encode(uint256(2))), _proofWithRoot(keccak256("other")));
+
+        assertEq(recordedFirst, 1, "the first query recorded an observation");
+        assertEq(recordedSecond, 1, "and so did the second, at the same height");
+        assertTrue(firstFeed != secondFeed, "they are different feeds");
+        assertEq(abi.decode(registry.observationOf(firstFeed).returnData, (uint256)), 1);
+        assertEq(abi.decode(registry.observationOf(secondFeed).returnData, (uint256)), 2, "neither overwrote the other");
+        assertEq(registry.observationOf(firstFeed).probeHeight, FRONTIER - 10);
+        assertEq(registry.observationOf(secondFeed).probeHeight, FRONTIER - 10);
     }
 
     // --- check 3: outside the attested range, in both directions --------------
@@ -160,7 +179,9 @@ contract LensRegistryChecksTest is Test {
     function test_heightBelowAttestationGenesisIsRejected() public {
         bytes memory encoded = _goodTx(999_999, abi.encode(uint256(1)));
         vm.expectRevert(
-            abi.encodeWithSelector(LensRegistry.HeightBelowAttestationGenesis.selector, ETHEREUM_KEY, uint64(999_999), uint64(1_000_000))
+            abi.encodeWithSelector(
+                LensRegistry.HeightBelowAttestationGenesis.selector, ETHEREUM_KEY, uint64(999_999), uint64(1_000_000)
+            )
         );
         _submit(999_999, encoded, _proof());
     }
@@ -181,7 +202,9 @@ contract LensRegistryChecksTest is Test {
         verifier.setTxIndex(1);
         bytes memory older = _goodTx(FRONTIER - 50, abi.encode(uint256(999)));
         vm.expectRevert(
-            abi.encodeWithSelector(LensRegistry.ObservationNotNewer.selector, id, uint256(FRONTIER - 50), uint256(FRONTIER - 10))
+            abi.encodeWithSelector(
+                LensRegistry.ObservationNotNewer.selector, id, uint256(FRONTIER - 50), uint256(FRONTIER - 10)
+            )
         );
         _submit(FRONTIER - 50, older, _proofWithRoot(keccak256("b")));
     }
@@ -248,7 +271,9 @@ contract LensRegistryChecksTest is Test {
     function test_logClaimingADifferentHeightThanWasProvenIsRejected() public {
         bytes memory encoded = _goodTx(FRONTIER - 999, abi.encode(uint256(1)));
         vm.expectRevert(
-            abi.encodeWithSelector(LensRegistry.EmittedHeightMismatch.selector, uint256(FRONTIER - 999), uint64(FRONTIER - 10))
+            abi.encodeWithSelector(
+                LensRegistry.EmittedHeightMismatch.selector, uint256(FRONTIER - 999), uint64(FRONTIER - 10)
+            )
         );
         _submit(FRONTIER - 10, encoded, _proof());
     }
