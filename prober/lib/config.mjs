@@ -128,6 +128,16 @@ export const feeds = [
     describe: (v) => `${(Number(v) / 1e18).toLocaleString()} aWETH issued`,
   },
   {
+    // The governance read VotePort needs: a holder's checkpointed weight at a past
+    // block. The block is part of the calldata, so it is part of the feed identity.
+    name: 'sepolia.lvote.pastVotes',
+    chainId: 11155111,
+    target: '0x99E1749Fd45Bb14CF59139b04Cc387981f3ef66e',
+    signature: 'function getPastVotes(address,uint256) view returns (uint256)',
+    args: ['0xcf7a68bF1585c36F0Cc0077Ce16888F6388FC359', 11676782],
+    describe: (v) => `${(Number(v) / 1e18).toLocaleString()} LVOTE of voting weight`,
+  },
+  {
     name: 'sepolia.chainlink.ethUsd',
     chainId: 11155111,
     target: '0x694AA1769357215DE4FAC081bf1f309aDC325306',
