@@ -145,6 +145,37 @@ export const feeds = [
     args: [],
     describe: (v) => `$${(Number(v) / 1e8).toFixed(2)} per ETH`,
   },
+  // --- Ethereum mainnet, chain key 3 on CC3 testnet -------------------------
+  // The reason a testnet deployment is worth anything: these are real mainnet
+  // values, proven onto a testnet, because CC3 testnet attests Ethereum.
+  {
+    name: 'mainnet.steth.rate',
+    chainId: 1,
+    target: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
+    signature: 'function getPooledEthByShares(uint256) view returns (uint256)',
+    args: ['1000000000000000000'],
+    describe: (v) => `${(Number(v) / 1e18).toFixed(9)} ETH per stETH share`,
+  },
+  {
+    // Historical state with no storage proof: ENS answers about its own past.
+    name: 'mainnet.ens.pastSupply',
+    chainId: 1,
+    target: '0xC18360217D8F7Ab5e7c516566761Ea12Ce7F9D72',
+    signature: 'function getPastTotalSupply(uint256) view returns (uint256)',
+    args: [25948230],
+    describe: (v) => `${(Number(v) / 1e18).toLocaleString()} ENS voting supply`,
+  },
+  {
+    // A variable-length return: two dynamic arrays. This is the shape that tests
+    // how much data survives the proof path, and it is the feed class the lag
+    // was designed around, since a thirty-minute average read late is still one.
+    name: 'mainnet.uniswap.ethUsdcTwap',
+    chainId: 1,
+    target: '0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640',
+    signature: 'function observe(uint32[]) view returns (int56[], uint160[])',
+    args: [[1800, 0]],
+    describe: (v) => `tick cumulatives ${v[0]}, ${v[1]}`,
+  },
 ];
 
 export function callDataFor(feed) {

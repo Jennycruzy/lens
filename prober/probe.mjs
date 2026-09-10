@@ -11,6 +11,7 @@
  * will be checked against, so it has to be captured at the same height, before the
  * transaction, from a source that is not Lens.
  */
+import { keccak256 } from 'ethers';
 import {
   feedByName, callDataFor, decodeFor, chainKeyFor, computeFeedId,
   sourceProvider, proberWallet, probeContract, sources,
@@ -50,7 +51,7 @@ for (const feed of selected) {
   const value = decodeFor(feed, raw);
   targets.push(feed.target);
   datas.push(data);
-  expected.push({ feed, data, raw, value });
+  expected.push({ feed, data, raw, value, callHash: keccak256(data) });
   console.log(`  ${feed.name}`);
   console.log(`    direct read at block ${head}: ${feed.describe(value)}`);
   console.log(`    feed id ${computeFeedId(chainKey, feed.target, data)}`);
@@ -86,9 +87,13 @@ if (receipt.status !== 1) {
 
 console.log(`  mined in block ${receipt.blockNumber}, ${receipt.gasUsed} gas used\n`);
 
-// Confirm the chain emitted exactly what the direct read returned. If these ever
-// disagree the whole design is worthless, so it is checked at the source before the
-// value goes anywhere near a proof.
+// Confirm the chain emitted exactly what a direct read returns.
+//
+// The comparison must be made at the height the probe actually executed at, not at the
+// height sampled before sending. Several feed classes are relative to the current block
+// — `observe(secondsAgo)` on a Uniswap pool most obviously — so a read taken two blocks
+// earlier legitimately differs, and comparing against it reports a divergence that is
+// not one.
 const iface = probe.interface;
 const logs = receipt.logs
   .filter((l) => l.address.toLowerCase() === probe.target.toLowerCase())
@@ -98,12 +103,30 @@ const logs = receipt.logs
 console.log(`  ${logs.length} log(s) emitted`);
 let mismatch = false;
 for (const log of logs) {
-  const match = expected.find((e) => e.feed.target.toLowerCase() === log.args.target.toLowerCase());
-  const agrees = match && log.args.returnData === match.raw;
+  const match = expected.find(
+    (e) => e.feed.target.toLowerCase() === log.args.target.toLowerCase() && e.callHash === log.args.callHash,
+  );
+  if (!match) {
+    console.log(`    ${log.args.target}: no local feed matches this log`);
+    mismatch = true;
+    continue;
+  }
+
+  // Re-read at the block the probe ran in, which is the only honest comparison.
+  const atProbeHeight = await provider.call({
+    to: match.feed.target,
+    data: match.data,
+    blockTag: Number(log.args.blockNumber),
+  });
+  const agrees = log.args.returnData === atProbeHeight;
   if (!agrees) mismatch = true;
-  console.log(`    ${match?.feed.name ?? log.args.target}`);
+
+  console.log(`    ${match.feed.name}`);
   console.log(`      success ${log.args.success}, truncated ${log.args.truncated}, height ${log.args.blockNumber}`);
-  console.log(`      emitted bytes ${agrees ? 'match the direct read' : 'DO NOT MATCH the direct read'}`);
+  console.log(`      emitted bytes ${agrees ? 'match a direct read at that block' : 'DO NOT MATCH a direct read at that block'}`);
+  if (agrees && atProbeHeight !== match.raw) {
+    console.log(`      note: the value moved between block ${head} and ${log.args.blockNumber}, which is ordinary`);
+  }
 }
 
 console.log(`\nnext: node prober/prove.mjs ${receipt.hash} ${chainId}\n`);
