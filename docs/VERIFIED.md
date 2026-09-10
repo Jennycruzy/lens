@@ -179,7 +179,7 @@ Measured against the live network, in order of when they block work:
 | Attestation lag distribution over 24h | published as a measurement, not a guess | one sample so far, collection running |
 | Frontier behaviour under a source-chain reorg | the circuit breaker trips on frontier regression | observational, needs a reorg |
 | Proof builder rate limits and auth | failover policy | neither host exposes a schema at the usual paths |
-| tCTC faucet, Blockscout and Sourcify endpoints for CC3 testnet | deployment and verification | Blockscout confirmed at `creditcoin-testnet.blockscout.com` |
+| Sourcify endpoint for CC3 testnet | contract verification must be a full match | still open; Blockscout is confirmed at `creditcoin-testnet.blockscout.com` and the tCTC faucet is a Discord bot, both written up in `FUNDING.md` |
 
 Nothing above is a guess in the codebase. Where a value is unknown, the code reads it at
 runtime or refuses.
