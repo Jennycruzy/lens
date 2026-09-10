@@ -62,11 +62,20 @@ Frontier from ChainInfo against the live source head, at 2026-09-10T12:40Z:
 | Ethereum mainnet | 25,947,010 | 25,947,049 | 39 blocks | ~7.8 min |
 | Sepolia | 11,674,960 | 11,675,001 | 41 blocks | ~8.2 min |
 
-Attestations land on a fixed stride — 200 blocks apart on mainnet, 150 on Sepolia — with
-checkpoints between them. Distribution over 24 hours is still being collected; this is a
-single sample, and it is labelled as one. The documented target is verification within
-about 15 seconds of source-chain finalisation, which is consistent with a frontier that
-trails the head by a stride rather than by a delay in the prover.
+**Correction.** An earlier version of this file claimed attestations land 200 blocks
+apart on mainnet and 150 on Sepolia. That was wrong. Those figures were the distance
+between the latest attestation and the latest *checkpoint*, which is a different thing
+that was misread as a stride.
+
+The frontier is observed to advance in steps of **10 blocks** on both chains. On Sepolia
+it was watched directly across an eight-minute window, moving 11,676,120 → 11,676,130 →
+11,676,140 → 11,676,150 → 11,676,160. Two mainnet samples taken about an hour apart,
+25,947,000 and 25,947,010, agree.
+
+So the frontier trails the head by roughly 30 to 40 blocks and closes that gap ten blocks
+at a time, which is consistent with the documented target of verification within about
+15 seconds of source-chain finalisation. Distribution over 24 hours is still being
+collected; what is above is direct observation over minutes, and is labelled as such.
 
 Attestation genesis height is `0` for both chains, so there is no lower bound on how far
 back a block can be proven beyond what the prover will build.
