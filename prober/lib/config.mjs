@@ -145,6 +145,29 @@ export const feeds = [
     args: [],
     describe: (v) => `$${(Number(v) / 1e8).toFixed(2)} per ETH`,
   },
+  {
+    // Access and compliance: who holds a privileged role on the source chain. Every RWA
+    // and permissioned-asset design on Creditcoin needs this shape and none can get it
+    // today. Aave's ACLManager on Sepolia is a real deployment with real role holders.
+    name: 'sepolia.aave.isPoolAdmin',
+    chainId: 11155111,
+    target: '0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD',
+    signature: 'function isPoolAdmin(address) view returns (bool)',
+    args: ['0xfA0e305E0f46AB04f00ae6b5f4560d61a2183E00'],
+    describe: (v) => (v ? 'holds pool admin' : 'does not hold pool admin'),
+  },
+  {
+    // The same question about an address that holds nothing. A feed whose honest answer
+    // is false is worth proving too: a consumer must be able to tell "not authorised"
+    // apart from "never checked", and only a proven false does that.
+    name: 'sepolia.aave.isPoolAdminStranger',
+    chainId: 11155111,
+    target: '0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD',
+    signature: 'function isPoolAdmin(address) view returns (bool)',
+    args: ['0x000000000000000000000000000000000000dEaD'],
+    describe: (v) => (v ? 'holds pool admin' : 'does not hold pool admin'),
+  },
+
   // --- Ethereum mainnet, chain key 3 on CC3 testnet -------------------------
   // The reason a testnet deployment is worth anything: these are real mainnet
   // values, proven onto a testnet, because CC3 testnet attests Ethereum.

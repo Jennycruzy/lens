@@ -215,14 +215,24 @@ trusting an exit code.
 
 Measured against the live network, in order of when they block work:
 
+### Answered since
+
+| Question | Answer |
+|---|---|
+| Largest returndata that survives the proof path | **At least 288 bytes**, measured: a Uniswap `observe([1800,0])` returning two dynamic arrays came back byte-equal through probe, proof, decode and storage. The probe caps at 8,192 bytes and flags anything longer as truncated, so the ceiling is a policy rather than a discovered limit. See `SPIKE.md`. |
+| Log index numbering in the decoder | **Per transaction.** `EvmV1Decoder.ReceiptFields` carries `LogEntry[] receiptLogs` scoped to the one decoded transaction, and `getLogsByEventSignature` filters within it. The registry never needs a block-wide index. |
+| Sourcify support for CC3 testnet | **Supported.** `sourcify.dev/server/chains` lists chainId 102031 as `supported: true`. Blockscout verification is done for all eight deployed contracts and is confirmed by API. |
+| Proof builder batch endpoint | `/api/v1/proof-batch-by-tx/{chainKey}`, POST, body is a **bare array** of hashes. Taken from the SDK's client rather than guessed; three guessed paths returned 404 first. |
+| Does `eth_estimateGas` work on pallet-evm | No usable failure information — see below. |
+
+### Still open
+
 | Question | Why it matters | Status |
 |---|---|---|
-| Largest returndata that survives the proof path | bounds what a probe may return | needs the first end-to-end read |
-| Log index numbering, block-wide or per-transaction, in the decoder | wrong reading binds the wrong log | needs the first end-to-end read |
-| Attestation lag distribution over 24h | published as a measurement, not a guess | one sample so far, collection running |
-| Frontier behaviour under a source-chain reorg | the circuit breaker trips on frontier regression | observational, needs a reorg |
-| Proof builder rate limits and auth | failover policy | neither host exposes a schema at the usual paths |
-| Sourcify endpoint for CC3 testnet | contract verification must be a full match | still open; Blockscout is confirmed at `creditcoin-testnet.blockscout.com` and the tCTC faucet is a Discord bot, both written up in `FUNDING.md` |
+| Attestation lag distribution over 24h | published as a measurement, not a guess | samples across one afternoon only; consistent at 30–40 blocks, but not a distribution |
+| Frontier behaviour under a source-chain reorg | the circuit breaker trips on frontier regression | no reorg observed on either chain during the build. The breaker's response is covered by invariant and unit tests against a rewound frontier, not against a real reorg |
+| Proof builder rate limits and auth | failover policy | neither host publishes a schema or documents limits; none were hit at this volume, which is not evidence there are none |
+| Archive access for re-checking mainnet feeds | `verify` and the differential runner re-read at the proven height | public mainnet RPCs refuse archive requests without a token, so mainnet feeds report inconclusive rather than byte-equal. Sepolia is unaffected |
 
 ### `eth_estimateGas` on pallet-evm — answered, and it is worse than expected
 
