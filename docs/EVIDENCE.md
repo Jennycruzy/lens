@@ -30,6 +30,8 @@ bytecode lands at the same address, and the registry needs no change.
 | What | Chain | Hash |
 |---|---|---|
 | `StateProbe` deployment | Sepolia | [`0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967`](https://sepolia.etherscan.io/tx/0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967) |
+| First probe, Sepolia WETH `totalSupply()` | Sepolia | [`0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f`](https://sepolia.etherscan.io/tx/0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f) |
+| That probe proven and recorded | CC3 testnet | [`0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668`](https://creditcoin-testnet.blockscout.com/tx/0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668) |
 | `LensRegistry` deployment | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
 
 ### Deployed state, read back from the chain
@@ -71,3 +73,43 @@ rather than reporting the wrong chain's state.
 | Attestation lag, Sepolia | 41 blocks, about 8.2 minutes | `VERIFIED.md` |
 | Three real mainnet feeds in one probe transaction | 155,260 gas | `READ-PATH.md` |
 | `StateProbe` deployment | 385,849 gas, 0.00094 ETH at 1.2 gwei | this file |
+
+
+## The loop, closed
+
+A value read on one chain, proven to another, and shown to be the same value.
+
+| Step | Where | Result |
+|---|---|---|
+| Read `totalSupply()` on Sepolia WETH | Sepolia, block 11,676,153 | 218,248.508 WETH |
+| Probe it | Sepolia | 29,380 gas |
+| Wait for attestation | Creditcoin | about 8 minutes, 33 blocks |
+| Build the proof | prover.cc3-testnet | 1,920 transaction bytes, 7 Merkle siblings, 8 continuity roots |
+| Submit it | CC3 testnet | 200,480 gas, Creditcoin block 5,464,540 |
+| Read it back | CC3 testnet | `0x…2e37467cb64a9aa49304` |
+
+Anyone can check the last line against the source without trusting this repository:
+
+```
+cast call 0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA \
+  'observationOf(bytes32)((bytes,uint256,uint64,bool,bool,address))' \
+  0x7296382ac1d2e0419f5ff0588bf91e56d9cd0399882670559a3361c8ec796346 \
+  --rpc-url https://rpc.cc3-testnet.creditcoin.network
+
+cast call 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14 'totalSupply()(uint256)' \
+  --block 11676153 --rpc-url https://ethereum-sepolia-rpc.publicnode.com
+```
+
+Both give 218248508270969010557700.
+
+### The refusals, on the live chain
+
+Rejections are asserted in tests, but two of them have now also been observed on
+Creditcoin itself rather than against a stub:
+
+| Attempt | Result |
+|---|---|
+| Submit the same proof a second time | `QueryAlreadyConsumed(queryKey=0xa31c4e17c23099854734310d55fea1faa760d2dbb544abe119ef90ddf412904c)` |
+| `frontierOf(99)`, a chain key this environment does not attest | `UnknownChainKey(99)` |
+
+A valid proof stays valid forever, which is exactly why it has to be spent once.
