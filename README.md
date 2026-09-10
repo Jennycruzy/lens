@@ -95,7 +95,7 @@ technique; and the composition layer.
 ## Tests
 
 ```
-forge test          # 190 tests
+forge test          # 184 tests
 node tools/differential.mjs
 ```
 

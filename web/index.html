@@ -50,6 +50,13 @@
   .card .n { color: var(--dim); font-size: 12.5px; margin-top: 5px; }
   .hex { color: var(--dim); word-break: break-all; }
   footer { border-top: 1px solid var(--line); padding: 22px 24px 40px; color: var(--dim); font-size: 13px; }
+  .builder { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .builder label { display: flex; flex-direction: column; gap: 5px; color: var(--dim); font-size: 12px;
+    text-transform: uppercase; letter-spacing: .04em; }
+  .builder input, .builder select { background: #0d1117; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 5px; padding: 8px 9px; font: 12.5px ui-monospace, Menlo, monospace; text-transform: none; }
+  pre { background: #0d1117; border: 1px solid var(--line); border-radius: 5px; padding: 11px 12px;
+    overflow-x: auto; margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -79,6 +86,56 @@
   <h2>Consumers</h2>
   <p class="sub">Contracts on Creditcoin acting on proven data, read live.</p>
   <div class="grid" id="consumers"><div class="card"><div class="k">loading</div></div></div>
+
+  <h2>Latency and cost</h2>
+  <p class="sub">
+    Read now, from the chains. The lag is why Lens carries time-averaged and checkpointed
+    values and not spot prices.
+  </p>
+  <div class="grid" id="latency"><div class="card"><div class="k">measuring</div></div></div>
+
+  <h2>Build a feed</h2>
+  <p class="sub">
+    Any view function on an attested chain is a feed. Fill this in and it computes the
+    identifier, reads the target now, and gives you the calldata a prober needs — no
+    wallet, nothing to install.
+  </p>
+  <div class="card">
+    <div class="builder">
+      <label>Chain
+        <select id="b-chain"></select>
+      </label>
+      <label>Contract address
+        <input id="b-target" placeholder="0x…" spellcheck="false" />
+      </label>
+      <label>Function signature
+        <input id="b-sig" value="totalSupply() returns (uint256)" spellcheck="false" />
+      </label>
+      <label>Arguments, comma separated
+        <input id="b-args" placeholder="leave empty for none" spellcheck="false" />
+      </label>
+    </div>
+    <button id="b-go" style="margin-top:12px">build it</button>
+    <div id="b-out" class="dim" style="margin-top:12px;font-size:13px">
+      Try the Sepolia WETH contract, <code>0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14</code>.
+    </div>
+  </div>
+
+  <h2>Integrate</h2>
+  <p class="sub">Two ways in. The second needs no change to a protocol already written against Chainlink.</p>
+  <div class="scroll"><div class="card">
+    <div class="k">Solidity, native</div>
+    <pre id="snippet-native" class="mono"></pre>
+    <button data-copy="snippet-native">copy</button>
+
+    <div class="k" style="margin-top:18px">Solidity, Chainlink-compatible</div>
+    <pre id="snippet-chainlink" class="mono"></pre>
+    <button data-copy="snippet-chainlink">copy</button>
+
+    <div class="k" style="margin-top:18px">JavaScript</div>
+    <pre id="snippet-js" class="mono"></pre>
+    <button data-copy="snippet-js">copy</button>
+  </div></div>
 
   <h2>Deployment</h2>
   <div class="scroll"><table id="addresses"><tbody></tbody></table></div>

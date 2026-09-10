@@ -55,13 +55,24 @@ for (const feed of C.feeds) {
   }
   const o = await registry.observationOf(id);
 
-  // The verify button's comparison, run here.
+  // The verify button's comparison, run here. A node that will not serve state at that
+  // height has told us nothing about whether the values agree, so it is kept apart from
+  // a divergence — the same rule the prober applies to a missing proof.
   const provider = new JsonRpcProvider(C.sources[feed.chainId].rpc, undefined, { staticNetwork: true });
-  const onSource = await provider.call({
-    to: feed.target,
-    data: feed.calldata,
-    blockTag: Number(o.probeHeight),
-  });
+  let onSource;
+  try {
+    onSource = await provider.call({
+      to: feed.target,
+      data: feed.calldata,
+      blockTag: Number(o.probeHeight),
+    });
+  } catch (e) {
+    const msg = e.shortMessage ?? e.message ?? '';
+    const archive = /archive|personal token|missing revert data|state.*not available/i.test(msg);
+    console.log(`  ${archive ? 'note' : 'FAIL'}  ${feed.name} — ${archive ? 'archive state unavailable on this RPC, so no comparison was possible' : msg.slice(0, 90)}`);
+    if (!archive) failures++;
+    continue;
+  }
 
   let decoded = '(no decoder)';
   try {
@@ -88,6 +99,57 @@ for (const [label, address, fragment] of cards) {
     say(true, `${label} — ${Array.isArray(result) ? result.join(', ') : result}`);
   } catch (e) {
     say(false, `${label} — ${e.shortMessage ?? e.message}`);
+  }
+}
+
+// --- the feed builder's arithmetic ------------------------------------------
+// The page derives a feed identifier in the browser. If that ever disagreed with the
+// registry, a visitor would be told a live feed does not exist, or the reverse.
+console.log('\nFeed builder\n');
+{
+  const target = '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14';
+  const iface = new (await import('ethers')).Interface(['function totalSupply() view returns (uint256)']);
+  const calldata = iface.encodeFunctionData('totalSupply', []);
+  const chainKey = keyOf[11155111];
+  const inBrowser = keccak256(
+    coder.encode(['uint64', 'address', 'bytes32'], [chainKey, target, keccak256(calldata)]),
+  );
+  const onChain = await new Contract(
+    C.registry,
+    ['function feedId(uint64,address,bytes) pure returns (bytes32)'],
+    creditcoin,
+  ).feedId(chainKey, target, calldata);
+  say(inBrowser === onChain, `identifier the builder derives matches the registry (${inBrowser.slice(0, 14)}…)`);
+
+  // It must refuse a call the target does not answer. Note that the call succeeding is
+  // not the test: a contract with a fallback — WETH's is `deposit` — returns empty for an
+  // unknown selector instead of reverting. Only decoding catches it, which is what the
+  // builder does and what this checks.
+  {
+    const bad = new (await import('ethers')).Interface(['function notAFunction() view returns (uint256)']);
+    const provider = new JsonRpcProvider(C.sources[11155111].rpc, undefined, { staticNetwork: true });
+    let offered = false;
+    try {
+      const raw = await provider.call({ to: target, data: bad.encodeFunctionData('notAFunction', []) });
+      bad.decodeFunctionResult('notAFunction', raw);
+      offered = true;
+    } catch { /* rejected, which is correct */ }
+    say(!offered, 'a call the target cannot answer is rejected before a feed is offered');
+  }
+}
+
+// --- the latency panel -------------------------------------------------------
+console.log('\nLatency panel\n');
+for (const [chainId, src] of Object.entries(C.sources)) {
+  const chainKey = keyOf[chainId];
+  if (chainKey === undefined) { say(true, `${src.label}: not attested here, shown as such`); continue; }
+  try {
+    const frontier = Number(await registry.frontierOf(chainKey));
+    const head = await new JsonRpcProvider(src.rpc, undefined, { staticNetwork: true }).getBlockNumber();
+    const lag = head - frontier;
+    say(lag >= 0 && lag < 5000, `${src.label}: ${lag} blocks behind (~${((lag * 12) / 60).toFixed(1)} min)`);
+  } catch (e) {
+    say(false, `${src.label}: ${e.shortMessage ?? e.message}`);
   }
 }
 

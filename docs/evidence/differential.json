@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-10T19:46:01.114Z",
+  "generatedAt": "2026-09-10T20:37:18.707Z",
   "registry": "0x81b6DcbcE28EC0634DC905cfDc5eA84005915852",
-  "creditcoinHeight": 5465251,
+  "creditcoinHeight": 5465456,
   "compared": 5,
   "diverged": 0,
   "rows": [
@@ -11,13 +11,13 @@
       "chainKey": 1,
       "target": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
       "feedId": "0x7296382ac1d2e0419f5ff0588bf91e56d9cd0399882670559a3361c8ec796346",
-      "probeHeight": 11676454,
-      "onCreditcoin": "0x000000000000000000000000000000000000000000002e3744e2354ee05d4e00",
+      "probeHeight": 11677088,
+      "onCreditcoin": "0x000000000000000000000000000000000000000000002e3bd20db2bc2edde71d",
       "callSucceeded": true,
-      "onSource": "0x000000000000000000000000000000000000000000002e3744e2354ee05d4e00",
+      "onSource": "0x000000000000000000000000000000000000000000002e3bd20db2bc2edde71d",
       "agrees": true,
       "status": "match",
-      "value": "218,248.393 WETH"
+      "value": "218,332.352 WETH"
     },
     {
       "feed": "sepolia.aave.wethBacking",
@@ -25,13 +25,13 @@
       "chainKey": 1,
       "target": "0xC558DBdd856501FCd9aaF1E62eae57A9F0629a3c",
       "feedId": "0xd774755ae7182cbd58c5f38c90a6d219b8511641e9c6c886a3f0075bc0735d7e",
-      "probeHeight": 11676700,
-      "onCreditcoin": "0x000000000000000000000000000000000000000000000292e0f54d4b92d384cb",
+      "probeHeight": 11677088,
+      "onCreditcoin": "0x00000000000000000000000000000000000000000000028f124dff8ef19a4bad",
       "callSucceeded": true,
-      "onSource": "0x000000000000000000000000000000000000000000000292e0f54d4b92d384cb",
+      "onSource": "0x00000000000000000000000000000000000000000000028f124dff8ef19a4bad",
       "agrees": true,
       "status": "match",
-      "value": "12,154.168 WETH held as backing"
+      "value": "12,083.936 WETH held as backing"
     },
     {
       "feed": "sepolia.aave.awethIssued",
@@ -39,13 +39,13 @@
       "chainKey": 1,
       "target": "0x5b071b590a59395fE4025A0Ccc1FcC931AAc1830",
       "feedId": "0x27d6df587bf9a5092339c4bf36dab8ca9c0e77b147a71a0bf5b2364f2f85cdd7",
-      "probeHeight": 11676700,
-      "onCreditcoin": "0x000000000000000000000000000000000000000000000292df651fe5fc87a278",
+      "probeHeight": 11677088,
+      "onCreditcoin": "0x00000000000000000000000000000000000000000000028f10bdd2295b4e695b",
       "callSucceeded": true,
-      "onSource": "0x000000000000000000000000000000000000000000000292df651fe5fc87a278",
+      "onSource": "0x00000000000000000000000000000000000000000000028f10bdd2295b4e695b",
       "agrees": true,
       "status": "match",
-      "value": "12,154.055 aWETH issued"
+      "value": "12,083.824 aWETH issued"
     },
     {
       "feed": "sepolia.lvote.pastVotes",
@@ -53,7 +53,7 @@
       "chainKey": 1,
       "target": "0x99E1749Fd45Bb14CF59139b04Cc387981f3ef66e",
       "feedId": "0x7722d02b49ebadaaccb2a5ea5e9164f61f4696d6f20c7a57f85a1a497290e115",
-      "probeHeight": 11676790,
+      "probeHeight": 11677088,
       "onCreditcoin": "0x00000000000000000000000000000000000000000000d3c21bcecceda1000000",
       "callSucceeded": true,
       "onSource": "0x00000000000000000000000000000000000000000000d3c21bcecceda1000000",
@@ -67,13 +67,49 @@
       "chainKey": 1,
       "target": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
       "feedId": "0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610",
-      "probeHeight": 11676700,
-      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000003970a509c0",
+      "probeHeight": 11677225,
+      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000003957ab9b00",
       "callSucceeded": true,
-      "onSource": "0x0000000000000000000000000000000000000000000000000000003970a509c0",
+      "onSource": "0x0000000000000000000000000000000000000000000000000000003957ab9b00",
       "agrees": true,
       "status": "match",
-      "value": "$2467.03 per ETH"
+      "value": "$2462.84 per ETH"
+    },
+    {
+      "feed": "mainnet.steth.rate",
+      "chainId": 1,
+      "chainKey": 3,
+      "target": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
+      "feedId": "0x30c2541562ad67453f5d9977594f83ca645c8240dc7ad89f9afe8e752d291e99",
+      "probeHeight": 25949269,
+      "onCreditcoin": "0x00000000000000000000000000000000000000000000000011428fc0f7422e67",
+      "callSucceeded": true,
+      "status": "unreachable",
+      "note": "missing revert data"
+    },
+    {
+      "feed": "mainnet.ens.pastSupply",
+      "chainId": 1,
+      "chainKey": 3,
+      "target": "0xC18360217D8F7Ab5e7c516566761Ea12Ce7F9D72",
+      "feedId": "0x345123e036527f2c58053b9fea10c59194f5d48627d53d7224ab88563b1031aa",
+      "probeHeight": 25949269,
+      "onCreditcoin": "0x00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000",
+      "callSucceeded": true,
+      "status": "unreachable",
+      "note": "missing revert data"
+    },
+    {
+      "feed": "mainnet.uniswap.ethUsdcTwap",
+      "chainId": 1,
+      "chainKey": 3,
+      "target": "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
+      "feedId": "0x79cf229be8c9c5c1bc14951978a5e64516cbe9b0fcb2270fb931f169b8303758",
+      "probeHeight": 25949269,
+      "onCreditcoin": "0x000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000001e7bcad29e8f00000000000000000000000000000000000000000000000000001e7be016feb700000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000002023d13125837ea5f2e41bf320000000000000000000000000000000000000002023d2c7bf91aeb50c7799acf",
+      "callSucceeded": true,
+      "status": "unreachable",
+      "note": "missing revert data"
     }
   ]
 }

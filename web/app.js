@@ -134,7 +134,19 @@ async function verify(btn, cell, feed, chainKey, observation) {
       `<div class="hex mono" style="margin-top:6px">source ${short(onSource, 20)}</div>` +
       `<div class="hex mono">lens&nbsp;&nbsp; ${short(observation.returnData, 20)}</div>`;
   } catch (e) {
-    cell.innerHTML = `<span class="bad">${e.shortMessage ?? e.message}</span>`;
+    // Public RPCs decline historical state past their retention, and Ethereum mainnet's
+    // free endpoints want a token for it. That says nothing about whether the values
+    // agree, so it must never be shown as a divergence — the honest label is that the
+    // check could not be made here.
+    const msg = e.shortMessage ?? e.message ?? '';
+    const archive = /archive|personal token|missing revert data|state.*not available/i.test(msg);
+    cell.innerHTML = archive
+      ? `<span class="pill warn">not checkable here</span>` +
+        `<div class="dim" style="font-size:12px;margin-top:6px">this public RPC will not serve state at block ${observation.probeHeight}.` +
+        ` The comparison was made when the value was proven; an archive endpoint reproduces it.</div>`
+      : `<span class="pill bad">error</span><div class="dim" style="font-size:12px;margin-top:6px">${msg.slice(0, 120)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'retry';
   }
 }
 
@@ -288,3 +300,178 @@ loadAddresses();
 loadFeeds();
 loadConsumers();
 setInterval(() => { loadFeeds(); loadConsumers(); }, 60000);
+
+// ---------------------------------------------------------------------------
+// Latency and cost, read from the chains rather than quoted from a document.
+
+async function loadLatency() {
+  const grid = document.getElementById('latency');
+  grid.innerHTML = '';
+  const keys = await chainKeys();
+
+  for (const [chainId, src] of Object.entries(C.sources)) {
+    const chainKey = keys[chainId];
+    const card = el('div', 'card');
+    card.appendChild(el('div', 'k', src.label));
+    const v = el('div', 'v', '…');
+    const n = el('div', 'n', '');
+    card.append(v, n);
+    grid.appendChild(card);
+
+    if (chainKey === undefined) {
+      v.textContent = '—';
+      n.textContent = 'not attested by this environment';
+      continue;
+    }
+    try {
+      const frontier = Number(await registry.frontierOf(chainKey));
+      const head = await sourceProviders[chainId].getBlockNumber();
+      const lag = head - frontier;
+      v.textContent = `${lag} blocks`;
+      n.textContent = `~${((lag * 12) / 60).toFixed(1)} min behind — frontier ${frontier.toLocaleString()}`;
+    } catch (e) {
+      v.textContent = '—';
+      n.textContent = (e.shortMessage ?? e.message ?? '').slice(0, 70);
+    }
+  }
+
+  // Measured on this deployment; the commands that produce them are in docs/LATENCY.md.
+  for (const [label, value, note] of [
+    ['Probe, one feed', '29,380 gas', 'on the source chain'],
+    ['Prove to Creditcoin', '200,480 gas', 'one source transaction'],
+    ['Each extra log in it', '30,621 gas', 'the argument for probeMany'],
+  ]) {
+    const card = el('div', 'card');
+    card.appendChild(el('div', 'k', label));
+    card.appendChild(el('div', 'v', value));
+    card.appendChild(el('div', 'n', note));
+    grid.appendChild(card);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Feed builder. Any view function on an attested chain is a feed; this works out which.
+
+async function loadBuilder() {
+  const select = document.getElementById('b-chain');
+  const keys = await chainKeys();
+  select.innerHTML = '';
+  for (const [chainId, src] of Object.entries(C.sources)) {
+    const o = el('option', '', `${src.label}${keys[chainId] === undefined ? ' — not attested' : ''}`);
+    o.value = chainId;
+    if (keys[chainId] === undefined) o.disabled = true;
+    select.appendChild(o);
+  }
+
+  document.getElementById('b-go').onclick = async () => {
+    const out = document.getElementById('b-out');
+    const chainId = document.getElementById('b-chain').value;
+    const target = document.getElementById('b-target').value.trim();
+    const sig = document.getElementById('b-sig').value.trim();
+    const rawArgs = document.getElementById('b-args').value.trim();
+
+    out.className = 'dim';
+    out.textContent = 'working…';
+    try {
+      if (!ethers.isAddress(target)) throw new Error('that is not an address');
+      const fn = sig.startsWith('function') ? sig : `function ${sig}`;
+      const iface = new ethers.Interface([fn]);
+      const fnName = fn.match(/function\s+(\w+)/)[1];
+      const args = rawArgs ? rawArgs.split(',').map((a) => a.trim()) : [];
+      const calldata = iface.encodeFunctionData(fnName, args);
+      const chainKey = keys[chainId];
+
+      // Read it now, and decode it. The call succeeding is not enough: a contract with a
+      // fallback returns empty for an unknown selector rather than reverting, so only
+      // decoding tells you the target really answers this function.
+      let sample;
+      try {
+        const raw = await sourceProviders[chainId].call({ to: target, data: calldata });
+        sample = String(iface.decodeFunctionResult(fnName, raw)[0]);
+      } catch (e) {
+        out.className = 'bad';
+        out.innerHTML = `That contract does not answer <code>${fnName}</code> on ${C.sources[chainId].label}.` +
+          `<div class="dim" style="margin-top:6px">A feed for a call the target rejects would never hold a value.</div>`;
+        return;
+      }
+
+      const feedId = keccak256(
+        coder.encode(['uint64', 'address', 'bytes32'], [chainKey, target, keccak256(calldata)]),
+      );
+      const exists = await registry.hasObservation(feedId);
+
+      out.className = '';
+      out.innerHTML =
+        `<div style="margin-bottom:8px">Reads <b>${sample}</b> right now.</div>` +
+        `<table style="margin-bottom:10px"><tbody>` +
+        `<tr><td class="dim">chain key here</td><td class="mono">${chainKey}</td></tr>` +
+        `<tr><td class="dim">calldata</td><td class="mono hex">${calldata}</td></tr>` +
+        `<tr><td class="dim">feed id</td><td class="mono hex">${feedId}</td></tr>` +
+        `<tr><td class="dim">already proven</td><td>${exists ? 'yes — this feed is live' : 'not yet; a prober has to probe it once'}</td></tr>` +
+        `</tbody></table>` +
+        `<div class="k">to make it live</div>` +
+        `<pre class="mono">node prober/probe.mjs &lt;your-feed-name&gt;\nnode prober/prove.mjs &lt;tx-hash&gt; ${chainId}</pre>`;
+    } catch (e) {
+      out.className = 'bad';
+      out.textContent = e.shortMessage ?? e.message;
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Integrate box.
+
+function loadSnippets() {
+  const ethUsd = C.feeds.find((f) => f.name.includes('ethUsd'));
+  const feedId = '0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610';
+
+  document.getElementById('snippet-native').textContent =
+`import {LensConsumer} from "lens/contracts/src/LensConsumer.sol";
+
+contract YourContract is LensConsumer {
+    constructor(LensRegistry lens) LensConsumer(lens) {}
+
+    function _defaultChainKey() internal pure override returns (uint64) { return 1; }
+
+    function price() external view returns (uint256) {
+        // 300 source blocks, about an hour. Below ~50 can never be satisfied:
+        // the frontier trails the source head by 30 to 40.
+        return _latestUint(${feedId}, 300);
+    }
+}`;
+
+  document.getElementById('snippet-chainlink').textContent =
+`// Already written against Chainlink? Change one address.
+AggregatorV3Interface feed = AggregatorV3Interface(
+    ${C.aggregator}
+);
+(, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
+require(block.timestamp - updatedAt <= maxAge, "stale");
+
+// updatedAt is the SOURCE chain's clock, so this measures the real age
+// of the number rather than when the proof happened to land here.`;
+
+  document.getElementById('snippet-js').textContent =
+`import { Lens } from '@lens/sdk';
+
+const lens = new Lens('${C.creditcoinRpc}', '${C.registry}');
+
+const price = await lens.readValue(
+  ${ethUsd?.chainId ?? 11155111},   // native chain id, never a chain key
+  '${ethUsd?.target ?? ''}',
+  'latestAnswer() returns (int256)', [], 600,
+);`;
+
+  for (const btn of document.querySelectorAll('[data-copy]')) {
+    btn.onclick = async () => {
+      await navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).textContent);
+      const was = btn.textContent;
+      btn.textContent = 'copied';
+      setTimeout(() => (btn.textContent = was), 1200);
+    };
+  }
+}
+
+loadLatency();
+loadBuilder();
+loadSnippets();

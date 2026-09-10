@@ -6,9 +6,22 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "verify:infra": "node tools/verify-infra.mjs",
     "build": "forge build",
-    "test": "forge test"
+    "test": "forge test",
+    "test:offline": "forge test --no-match-path 'contracts/test/fork/*'",
+    "coverage": "forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary",
+    "verify:infra": "node tools/verify-infra.mjs",
+    "verify:claims": "node tools/verify-claims.mjs",
+    "verify:contracts": "bash tools/verify-contracts.sh",
+    "differential": "node tools/differential.mjs",
+    "doctor": "node prober/lens.mjs doctor",
+    "bench": "node prober/lens.mjs bench",
+    "watch": "node prober/lens.mjs watch",
+    "keep": "node prober/lens.mjs keep",
+    "web:build": "node tools/build-web-config.mjs",
+    "web:check": "node tools/build-web-config.mjs --check",
+    "web:smoke": "node tools/web-smoke.mjs",
+    "balances": "node tools/balances.mjs"
   },
   "dependencies": {
     "@gluwa/asc-contracts": "0.2.1",
@@ -16,5 +29,8 @@
     "@openzeppelin/contracts": "5.4.0",
     "dotenv": "17.4.2",
     "ethers": "^6.17.0"
+  },
+  "bin": {
+    "lens": "prober/lens.mjs"
   }
 }

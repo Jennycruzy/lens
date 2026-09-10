@@ -27,6 +27,9 @@ jobs:
       - name: unit, adversarial, invariant and property tests
         run: forge test --no-match-path 'contracts/test/fork/*'
 
+      - name: the page's feed list is generated, not a second copy
+        run: node tools/build-web-config.mjs --check
+
       - name: formatting
         run: forge fmt --check
         continue-on-error: true
