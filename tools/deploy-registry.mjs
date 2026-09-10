@@ -30,7 +30,8 @@ const env = Object.fromEntries(
 );
 
 const CHAIN_INFO = '0x0000000000000000000000000000000000000fd3';
-const PROBE = '0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe';
+const PROBE = env.LENS_PROBE;
+if (!PROBE) throw new Error('LENS_PROBE missing from .env; deploy the probe first');
 
 // The native chain ids we want, never the keys. Keys are environment-local.
 const WANTED = [

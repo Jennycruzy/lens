@@ -18,7 +18,7 @@ import {StateProbe} from "../contracts/src/source/StateProbe.sol";
  *      probe or a failed transaction.
  */
 contract DeployProbe is Script {
-    bytes32 public constant SALT = keccak256("lens.state-probe.v1");
+    bytes32 public constant SALT = keccak256("lens.state-probe.v2");
 
     function run() external returns (StateProbe probe) {
         address predicted = vm.computeCreate2Address(SALT, keccak256(type(StateProbe).creationCode));
