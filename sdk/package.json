@@ -1,0 +1,12 @@
+{
+  "name": "@lens/sdk",
+  "version": "0.1.0",
+  "description": "Read verified cross-chain state from Lens on Creditcoin.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "files": ["src", "README.md"],
+  "peerDependencies": { "ethers": "^6.0.0" },
+  "keywords": ["creditcoin", "attestcoin", "oracle", "cross-chain", "chainlink"]
+}
