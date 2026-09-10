@@ -8,9 +8,20 @@ import { readFileSync } from 'node:fs';
 import { ContractFactory, Contract, parseUnits } from 'ethers';
 import { proberWallet, sourceProvider } from '../prober/lib/config.mjs';
 
+/** Reads a compiled artifact, and says what to do when the project has not been built. */
+function readArtifact(url) {
+  try {
+    return JSON.parse(readFileSync(url));
+  } catch {
+    console.error('\n  no compiled artifact. Run: forge build\n');
+    process.exit(2);
+  }
+}
+
+
 const broadcast = process.argv.includes('--broadcast');
 const wallet = proberWallet(11155111);
-const art = JSON.parse(readFileSync(new URL('../out/LensVoteToken.sol/LensVoteToken.json', import.meta.url)));
+const art = readArtifact(new URL('../out/LensVoteToken.sol/LensVoteToken.json', import.meta.url));
 
 console.log(`\n  holder ${wallet.address}`);
 if (!broadcast) {

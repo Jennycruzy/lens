@@ -22,6 +22,17 @@ import { readFileSync } from 'node:fs';
 import { JsonRpcProvider, Wallet, ContractFactory, Contract, toUtf8String } from 'ethers';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
 
+/** Reads a compiled artifact, and says what to do when the project has not been built. */
+function readArtifact(url) {
+  try {
+    return JSON.parse(readFileSync(url));
+  } catch {
+    console.error('\n  no compiled artifact. Run: forge build\n');
+    process.exit(2);
+  }
+}
+
+
 const env = Object.fromEntries(
   readFileSync(new URL('../.env', import.meta.url), 'utf8')
     .split('\n')
@@ -42,7 +53,7 @@ const WANTED = [
 ];
 
 const broadcast = process.argv.includes('--broadcast');
-const artifact = JSON.parse(readFileSync(new URL('../out/LensRegistry.sol/LensRegistry.json', import.meta.url)));
+const artifact = readArtifact(new URL('../out/LensRegistry.sol/LensRegistry.json', import.meta.url));
 
 const provider = new JsonRpcProvider(env.CC3_TESTNET_RPC, undefined, { staticNetwork: true });
 const wallet = new Wallet(env.CC3_PRIVATE_KEY, provider);

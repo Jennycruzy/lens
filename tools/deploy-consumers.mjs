@@ -10,9 +10,21 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { ContractFactory, Contract } from 'ethers';
 import {
+
   feedByName, callDataFor, chainKeyFor, computeFeedId,
   creditcoin, creditcoinWallet, addresses,
 } from '../prober/lib/config.mjs';
+
+/** Reads a compiled artifact, and says what to do when the project has not been built. */
+function readArtifact(url) {
+  try {
+    return JSON.parse(readFileSync(url));
+  } catch {
+    console.error('\n  no compiled artifact. Run: forge build\n');
+    process.exit(2);
+  }
+}
+
 
 const broadcast = process.argv.includes('--broadcast');
 const wallet = creditcoinWallet();
@@ -20,7 +32,7 @@ const wallet = creditcoinWallet();
 /// Foundry keys `out/` by source filename alone, not by path, so a contract declared
 /// in another file is found under that file's name rather than its directory.
 const artifact = (name, file) =>
-  JSON.parse(readFileSync(new URL(`../out/${file ?? name + '.sol'}/${name}.json`, import.meta.url)));
+  readArtifact(new URL(`../out/${file ?? name + '.sol'}/${name}.json`, import.meta.url));
 
 const deployed = {};
 

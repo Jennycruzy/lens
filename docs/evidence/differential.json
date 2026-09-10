@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-10T20:37:18.707Z",
+  "generatedAt": "2026-09-10T21:08:08.082Z",
   "registry": "0x81b6DcbcE28EC0634DC905cfDc5eA84005915852",
-  "creditcoinHeight": 5465456,
-  "compared": 5,
+  "creditcoinHeight": 5465579,
+  "compared": 7,
   "diverged": 0,
   "rows": [
     {
@@ -11,13 +11,13 @@
       "chainKey": 1,
       "target": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
       "feedId": "0x7296382ac1d2e0419f5ff0588bf91e56d9cd0399882670559a3361c8ec796346",
-      "probeHeight": 11677088,
-      "onCreditcoin": "0x000000000000000000000000000000000000000000002e3bd20db2bc2edde71d",
+      "probeHeight": 11677331,
+      "onCreditcoin": "0x000000000000000000000000000000000000000000002e3baa01a4bbd86fd602",
       "callSucceeded": true,
-      "onSource": "0x000000000000000000000000000000000000000000002e3bd20db2bc2edde71d",
+      "onSource": "0x000000000000000000000000000000000000000000002e3baa01a4bbd86fd602",
       "agrees": true,
       "status": "match",
-      "value": "218,332.352 WETH"
+      "value": "218,329.466 WETH"
     },
     {
       "feed": "sepolia.aave.wethBacking",
@@ -67,13 +67,41 @@
       "chainKey": 1,
       "target": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
       "feedId": "0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610",
-      "probeHeight": 11677225,
-      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000003957ab9b00",
+      "probeHeight": 11677327,
+      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000003962663000",
       "callSucceeded": true,
-      "onSource": "0x0000000000000000000000000000000000000000000000000000003957ab9b00",
+      "onSource": "0x0000000000000000000000000000000000000000000000000000003962663000",
       "agrees": true,
       "status": "match",
-      "value": "$2462.84 per ETH"
+      "value": "$2464.64 per ETH"
+    },
+    {
+      "feed": "sepolia.aave.isPoolAdmin",
+      "chainId": 11155111,
+      "chainKey": 1,
+      "target": "0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD",
+      "feedId": "0xb569ac0d67e5380ad7d671f1a4578468174d62d243f2ca3aee6aa8917e0cb3c2",
+      "probeHeight": 11677384,
+      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "callSucceeded": true,
+      "onSource": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "agrees": true,
+      "status": "match",
+      "value": "holds pool admin"
+    },
+    {
+      "feed": "sepolia.aave.isPoolAdminStranger",
+      "chainId": 11155111,
+      "chainKey": 1,
+      "target": "0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD",
+      "feedId": "0x16036242083992d8f77d0757f859ebc71dcbbe577c828df500cf2837ad112f62",
+      "probeHeight": 11677384,
+      "onCreditcoin": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "callSucceeded": true,
+      "onSource": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "agrees": true,
+      "status": "match",
+      "value": "does not hold pool admin"
     },
     {
       "feed": "mainnet.steth.rate",

@@ -21,9 +21,32 @@ export const env = Object.fromEntries(
 
 export const CHAIN_INFO = '0x0000000000000000000000000000000000000fd3';
 
+/**
+ * Compiled artifacts, loaded on first use rather than on import.
+ *
+ * Loading them eagerly meant every tool died on a clean clone before `forge build`, with
+ * a stack trace about a missing JSON file — including the tools that never touch an
+ * artifact. Now only the tools that need one pay for it, and the error says what to do.
+ */
+const artifactCache = {};
+const loadArtifact = (name) => {
+  if (artifactCache[name]) return artifactCache[name];
+  const path = new URL(`out/${name}.sol/${name}.json`, root);
+  try {
+    artifactCache[name] = JSON.parse(readFileSync(path));
+  } catch {
+    throw new Error(`no compiled artifact for ${name}. Run: forge build`);
+  }
+  return artifactCache[name];
+};
+
 export const artifacts = {
-  registry: JSON.parse(readFileSync(new URL('out/LensRegistry.sol/LensRegistry.json', root))),
-  probe: JSON.parse(readFileSync(new URL('out/StateProbe.sol/StateProbe.json', root))),
+  get registry() {
+    return loadArtifact('LensRegistry');
+  },
+  get probe() {
+    return loadArtifact('StateProbe');
+  },
 };
 
 /**

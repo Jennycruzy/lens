@@ -9,9 +9,21 @@
 import { readFileSync } from 'node:fs';
 import { ContractFactory, Contract } from 'ethers';
 import {
+
   env, feedByName, callDataFor, chainKeyFor, computeFeedId,
   creditcoin, creditcoinWallet, addresses,
 } from '../prober/lib/config.mjs';
+
+/** Reads a compiled artifact, and says what to do when the project has not been built. */
+function readArtifact(url) {
+  try {
+    return JSON.parse(readFileSync(url));
+  } catch {
+    console.error('\n  no compiled artifact. Run: forge build\n');
+    process.exit(2);
+  }
+}
+
 
 const [name, decimalsArg, maxAgeArg] = process.argv.slice(2);
 const broadcast = process.argv.includes('--broadcast');
@@ -26,9 +38,7 @@ const feedId = computeFeedId(chainKey, feed.target, callDataFor(feed));
 const decimals = Number(decimalsArg);
 const maxAge = BigInt(maxAgeArg);
 
-const artifact = JSON.parse(
-  readFileSync(new URL('../out/LensAggregatorV3.sol/LensAggregatorV3.json', import.meta.url)),
-);
+const artifact = readArtifact(new URL('../out/LensAggregatorV3.sol/LensAggregatorV3.json', import.meta.url));
 
 console.log(`\n  feed        ${feed.name}`);
 console.log(`  registry    ${addresses.registry}`);

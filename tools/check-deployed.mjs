@@ -56,7 +56,13 @@ console.log('');
 for (const [label, address, provider] of targets) {
   const name = label.split(' ')[0];
   if (!address) { console.log(`  skip  ${label}: no address configured`); continue; }
-  const art = JSON.parse(readFileSync(new URL(`../out/${name}.sol/${name}.json`, import.meta.url)));
+  let art;
+  try {
+    art = JSON.parse(readFileSync(new URL(`../out/${name}.sol/${name}.json`, import.meta.url)));
+  } catch {
+    console.error(`\n  no compiled artifact for ${name}. Run: forge build\n`);
+    process.exit(2);
+  }
   const refs = art.deployedBytecode.immutableReferences;
 
   const local = keccak256(maskImmutables(stripMetadata(art.deployedBytecode.object), refs));
