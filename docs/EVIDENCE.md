@@ -49,6 +49,8 @@ bytecode lands at the same address, and the registry needs no change.
 |---|---|---|
 | `StateProbe` deployment | Sepolia | [`0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967`](https://sepolia.etherscan.io/tx/0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967) |
 | First probe, Sepolia WETH `totalSupply()` | Sepolia | [`0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f`](https://sepolia.etherscan.io/tx/0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f) |
+| Two feeds probed in one transaction | Sepolia | [`0x29a8a7be2ff3cde02fd767771b09fc6e4ac2f5c1c4c6584f3b04251657946e0d`](https://sepolia.etherscan.io/tx/0x29a8a7be2ff3cde02fd767771b09fc6e4ac2f5c1c4c6584f3b04251657946e0d) |
+| Both proven in one submission | CC3 testnet | [`0x82653274dbb461627b6c5d96f6ba9d37681ce7a21145a4c5da7e9b95ce3c8f6d`](https://creditcoin-testnet.blockscout.com/tx/0x82653274dbb461627b6c5d96f6ba9d37681ce7a21145a4c5da7e9b95ce3c8f6d) |
 | That probe proven and recorded | CC3 testnet | [`0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668`](https://creditcoin-testnet.blockscout.com/tx/0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668) |
 | `LensRegistry` deployment, superseded | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
 | `StateProbe` deployment, current | Sepolia | contract `0xC335466ffcac94fCe7820326930888dAA9204a23` |
@@ -92,6 +94,15 @@ rather than reporting the wrong chain's state.
 | Attestation lag, Ethereum mainnet | 39 blocks, about 7.8 minutes | `VERIFIED.md` |
 | Attestation lag, Sepolia | 41 blocks, about 8.2 minutes | `VERIFIED.md` |
 | Three real mainnet feeds in one probe transaction | 155,260 gas | `READ-PATH.md` |
+| Proving one feed to Creditcoin | 200,480 gas | measured |
+| Proving two feeds under one shared continuity proof | 231,101 gas | measured |
+| **Marginal cost of a second feed in the same proof** | **30,621 gas** | the two rows above |
+
+That last number is the argument for batching. The first feed in a proof costs 200,480
+gas; the second costs 30,621, because the continuity proof is paid for once and the
+Merkle proof is all that is added per query. The precompile accepts ten queries under one
+continuity proof, so a full batch approaches roughly 48,000 gas per feed against 200,480
+for the same ten proven one at a time — about a quarter of the cost.
 | `StateProbe` deployment | 385,849 gas, 0.00094 ETH at 1.2 gwei | this file |
 
 
@@ -121,6 +132,20 @@ cast call 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14 'totalSupply()(uint256)' \
 ```
 
 Both give 218248508270969010557700.
+
+### A Chainlink price, proven
+
+Sepolia's Chainlink ETH/USD aggregator read through Lens, at source block 11,676,425:
+
+| Where | Bytes | Value |
+|---|---|---|
+| On Sepolia, directly | `0x…3970a509c0` | $2,467.03 |
+| On Creditcoin, proven | `0x…3970a509c0` | $2,467.03 |
+
+Worth stating plainly: this is a Chainlink feed carried onto a chain Chainlink does not
+serve, without Chainlink's participation and without anyone being trusted to report it
+honestly. The number is not relayed. The read happened on Sepolia, and the log proving it
+happened was verified by the precompile.
 
 ### The refusals, on the live chain
 
