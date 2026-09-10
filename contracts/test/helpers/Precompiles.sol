@@ -130,6 +130,7 @@ library TxFixture {
         bool success,
         bool truncated,
         uint256 height,
+        uint256 timestamp,
         bytes memory returnData
     ) internal pure returns (EvmV1Decoder.LogEntry memory) {
         bytes32[] memory topics = new bytes32[](4);
@@ -137,6 +138,6 @@ library TxFixture {
         topics[1] = bytes32(uint256(uint160(target)));
         topics[2] = callHash;
         topics[3] = bytes32(uint256(uint160(prober)));
-        return EvmV1Decoder.LogEntry(emitter, topics, abi.encode(success, truncated, height, returnData));
+        return EvmV1Decoder.LogEntry(emitter, topics, abi.encode(success, truncated, height, timestamp, returnData));
     }
 }

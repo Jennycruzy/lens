@@ -35,7 +35,17 @@ contract StateProbe {
      *                   apart from "no probe exists".
      * @param truncated  True when the target returned more than {MAX_RETURN_BYTES}.
      *                   The data below is then a prefix and must not be decoded.
+     * @param blockNumber Source-chain height the read was performed at.
+     * @param blockTimestamp Source-chain time the read was performed at.
      * @param returnData Bytes the target returned, or the revert data when !success.
+     *
+     * @dev The timestamp is emitted because nothing downstream can recover it. It is not
+     *      carried in the proven transaction encoding, and Creditcoin's own clock reads
+     *      minutes later than the read — the attestation lag sits between them. A
+     *      consumer told the later time would believe the value fresher than it is,
+     *      which is the one error this whole design exists to prevent. Chainlink-shaped
+     *      consumers compare `updatedAt` against `block.timestamp` and liquidate on the
+     *      difference, so the honest source time has to travel with the value.
      */
     event Probed(
         address indexed target,
@@ -44,6 +54,7 @@ contract StateProbe {
         bool success,
         bool truncated,
         uint256 blockNumber,
+        uint256 blockTimestamp,
         bytes returnData
     );
 
@@ -103,7 +114,7 @@ contract StateProbe {
     ///      be emitted, which it could equally do by calling {probe} itself.
     function _probe(address target, bytes calldata data) private {
         (bool success, bool truncated, bytes memory ret) = _boundedStaticCall(target, data);
-        emit Probed(target, keccak256(data), msg.sender, success, truncated, block.number, ret);
+        emit Probed(target, keccak256(data), msg.sender, success, truncated, block.number, block.timestamp, ret);
     }
 
     /**

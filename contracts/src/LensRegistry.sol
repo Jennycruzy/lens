@@ -34,12 +34,16 @@ import {IChainInfo, ChainInfoLib} from "./interfaces/IChainInfo.sol";
 contract LensRegistry {
     using EvmV1Decoder for bytes;
 
-    /// @dev keccak256("Probed(address,bytes32,address,bool,bool,uint256,bytes)")
-    bytes32 public constant PROBED_SIGNATURE = 0xcc205dbd77fbafc012eccc26fdeae09611101621c9e62bb7de830d156832dbfe;
+    /// @dev keccak256("Probed(address,bytes32,address,bool,bool,uint256,uint256,bytes)")
+    bytes32 public constant PROBED_SIGNATURE = 0x2373d36eb926cb2c85ee44b32054271c7ae2854ea55412b676125465f04b94fc;
 
     struct Observation {
         bytes returnData;
         uint256 probeHeight;
+        /// @dev Source-chain time of the read. This is the time the value describes.
+        uint64 sourceTimestamp;
+        /// @dev Creditcoin time the proof landed. Later than {sourceTimestamp} by the
+        ///      attestation lag, and useful only for accounting — never for freshness.
         uint64 recordedAt;
         bool callSucceeded;
         bool truncated;
@@ -291,8 +295,13 @@ contract LensRegistry {
             bytes32 callHash = log.topics[2];
             address prober = address(uint160(uint256(log.topics[3])));
 
-            (bool callSucceeded, bool truncated, uint256 emittedHeight, bytes memory returnData) =
-                abi.decode(log.data, (bool, bool, uint256, bytes));
+            (
+                bool callSucceeded,
+                bool truncated,
+                uint256 emittedHeight,
+                uint256 emittedTimestamp,
+                bytes memory returnData
+            ) = abi.decode(log.data, (bool, bool, uint256, uint256, bytes));
 
             // The probe records the height it ran at. It must be the height that was
             // proven, or the log has been bound to the wrong block somewhere.
@@ -310,6 +319,7 @@ contract LensRegistry {
             _observations[id] = Observation({
                 returnData: returnData,
                 probeHeight: blockHeight,
+                sourceTimestamp: uint64(emittedTimestamp),
                 recordedAt: uint64(block.timestamp),
                 callSucceeded: callSucceeded,
                 truncated: truncated,

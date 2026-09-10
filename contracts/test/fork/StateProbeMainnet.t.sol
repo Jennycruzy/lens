@@ -51,7 +51,7 @@ contract StateProbeMainnetTest is Test {
         probe.probe(target, data);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(logs.length, 1, "exactly one log per read");
-        (success, truncated,, ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (success, truncated,,, ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
     }
 
     /// A time-averaged price is the feed class Lens is built for: the lag is part of
@@ -138,7 +138,7 @@ contract StateProbeMainnetTest is Test {
         emit log_named_uint("gas for three real feeds in one transaction", used);
 
         for (uint256 i = 0; i < 3; i++) {
-            (bool ok,,,) = abi.decode(logs[i].data, (bool, bool, uint256, bytes));
+            (bool ok,,,,) = abi.decode(logs[i].data, (bool, bool, uint256, uint256, bytes));
             assertTrue(ok, "every real read succeeded");
         }
     }

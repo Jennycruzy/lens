@@ -35,6 +35,7 @@ contract LensRegistryChecksTest is Test {
     uint64 constant FRONTIER = 25_947_000;
     bytes32 callHash = keccak256(hex"12345678");
     bytes32 probedSignature;
+    uint256 constant SOURCE_TIME = 1_757_000_000;
 
     function setUp() public {
         // Put the stubs where the precompiles live, so the registry's own hardcoded
@@ -73,7 +74,7 @@ contract LensRegistryChecksTest is Test {
     {
         EvmV1Decoder.LogEntry[] memory logs = new EvmV1Decoder.LogEntry[](1);
         logs[0] = TxFixture.probedLog(
-            emitter, probedSignature, TARGET, callHash, PROBER, callSucceeded, truncated, height, ret
+            emitter, probedSignature, TARGET, callHash, PROBER, callSucceeded, truncated, height, SOURCE_TIME, ret
         );
         return TxFixture.encode(2, status, logs);
     }
@@ -275,6 +276,23 @@ contract LensRegistryChecksTest is Test {
         _submit(FRONTIER - 10, encoded, _proof());
         bytes32 id = registry.feedIdFromCallHash(ETHEREUM_KEY, TARGET, callHash);
         assertTrue(registry.observationOf(id).truncated, "must be marked truncated");
+    }
+
+    // --- the two clocks must not be confused -----------------------------------
+
+    /// The source time is when the value was true. Creditcoin's time is when the proof
+    /// arrived, which is later by the attestation lag. A consumer handed the second and
+    /// told it was the first believes the value fresher than it is.
+    function test_sourceTimeAndCreditcoinTimeAreRecordedSeparately() public {
+        vm.warp(SOURCE_TIME + 8 minutes);
+        _submit(FRONTIER - 10, _goodTx(FRONTIER - 10, abi.encode(uint256(1))), _proof());
+
+        bytes32 id = registry.feedIdFromCallHash(ETHEREUM_KEY, TARGET, callHash);
+        LensRegistry.Observation memory o = registry.observationOf(id);
+
+        assertEq(o.sourceTimestamp, SOURCE_TIME, "must keep the time the read happened");
+        assertEq(o.recordedAt, SOURCE_TIME + 8 minutes, "and the time the proof landed");
+        assertLt(o.sourceTimestamp, o.recordedAt, "the source time is always the earlier of the two");
     }
 
     // --- absence is not zero ---------------------------------------------------

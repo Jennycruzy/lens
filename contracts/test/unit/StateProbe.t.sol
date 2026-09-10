@@ -53,6 +53,7 @@ contract StateProbeTest is Test {
         bool success,
         bool truncated,
         uint256 blockNumber,
+        uint256 blockTimestamp,
         bytes returnData
     );
 
@@ -66,7 +67,9 @@ contract StateProbeTest is Test {
     function test_emitsTheValueTheEvmProduced() public {
         bytes memory data = abi.encodeCall(Value.answer, ());
         vm.expectEmit(true, true, true, true);
-        emit Probed(address(value), keccak256(data), address(this), true, false, block.number, abi.encode(uint256(42)));
+        emit Probed(
+            address(value), keccak256(data), address(this), true, false, block.number, block.timestamp, abi.encode(uint256(42))
+        );
         probe.probe(address(value), data);
     }
 
@@ -78,7 +81,7 @@ contract StateProbeTest is Test {
         probe.probe(address(reverter), data);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(logs.length, 1, "one log");
-        (bool success,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (bool success,,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertFalse(success, "must report failure");
         assertEq(ret, abi.encodeWithSelector(Reverter.Nope.selector, uint256(7)), "revert data preserved");
     }
@@ -94,7 +97,7 @@ contract StateProbeTest is Test {
         vm.recordLogs();
         probe.probe(address(bomb), hex"11223344");
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (bool success, bool truncated,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (bool success, bool truncated,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertTrue(success);
         assertTrue(truncated, "must flag truncation");
         assertEq(ret.length, probe.MAX_RETURN_BYTES(), "copy is capped");
@@ -105,7 +108,7 @@ contract StateProbeTest is Test {
         vm.recordLogs();
         probe.probe(address(bomb), hex"01");
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (, bool truncated,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (, bool truncated,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertFalse(truncated, "boundary is inclusive");
         assertEq(ret.length, probe.MAX_RETURN_BYTES());
     }
@@ -115,7 +118,7 @@ contract StateProbeTest is Test {
         vm.recordLogs();
         probe.probe(address(bomb), hex"02");
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (,,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertLe(ret.length, probe.MAX_RETURN_BYTES());
         assertEq(ret.length, requested > probe.MAX_RETURN_BYTES() ? probe.MAX_RETURN_BYTES() : requested);
     }
@@ -131,7 +134,7 @@ contract StateProbeTest is Test {
         vm.recordLogs();
         probe.probe(address(0xdead), hex"aabb");
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (bool success,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, bytes));
+        (bool success,,,, bytes memory ret) = abi.decode(logs[0].data, (bool, bool, uint256, uint256, bytes));
         assertTrue(success, "the EVM says this succeeds");
         assertEq(ret.length, 0);
     }
@@ -207,9 +210,9 @@ contract StateProbeGasTest is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(logs.length, 3, "every query still reported");
-        (bool okBurner,,,) = abi.decode(logs[1].data, (bool, bool, uint256, bytes));
+        (bool okBurner,,,,) = abi.decode(logs[1].data, (bool, bool, uint256, uint256, bytes));
         assertFalse(okBurner, "the burner is recorded as a failed read");
-        (bool okLast,,, bytes memory ret) = abi.decode(logs[2].data, (bool, bool, uint256, bytes));
+        (bool okLast,,,, bytes memory ret) = abi.decode(logs[2].data, (bool, bool, uint256, uint256, bytes));
         assertTrue(okLast, "the query after it still ran");
         assertEq(ret, abi.encode(uint256(42)), "and returned the right value");
     }
