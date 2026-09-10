@@ -11,6 +11,13 @@ plan; each row is on a public chain and can be checked without asking us.
 | `StateProbe` | Ethereum mainnet (chain key 3) | `0xC335466ffcac94fCe7820326930888dAA9204a23` | same address, awaiting funding |
 | `LensRegistry` | Creditcoin CC3 testnet | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://creditcoin-testnet.blockscout.com/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) | current |
 | `LensAggregatorV3`, ETH/USD | Creditcoin CC3 testnet | [`0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5`](https://creditcoin-testnet.blockscout.com/address/0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5) | current |
+| `ReserveMonitor` | Creditcoin CC3 testnet | `0xD51bEE1d6b2f013d907D3e13e570b2b6586e0c72` | current |
+| `LensMarket` | Creditcoin CC3 testnet | `0xEE527a62C239E4664e887c0e248eAc741E0EF9EF` | current |
+| `VotePort` | Creditcoin CC3 testnet | `0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115` | current |
+| `SnapshotProver` | Creditcoin CC3 testnet | `0xaef8215c3048687Cf3d0346cB9FcB1BE67c12647` | current |
+| `CircuitBreaker` | Creditcoin CC3 testnet | `0xf219a37884B5314dD5057d0C4051aa0349907066` | current |
+| `FeedEscrow` | Creditcoin CC3 testnet | `0x4f6b5262221a6fBDE2126174577f4E9956ddFa04` | current |
+| `LensVoteToken` | Ethereum Sepolia | `0x99E1749Fd45Bb14CF59139b04Cc387981f3ef66e` | a real ERC20Votes, see below |
 
 ### Superseded, and why
 
@@ -182,6 +189,37 @@ number.
 
 The round id is the source-chain height rather than a counter, which makes a round a
 statement about where on the source chain the value came from.
+
+### A vote cast on Creditcoin with weight proven from another chain
+
+The governance claim, carried out rather than described. Proposal 0 on
+`0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115`:
+
+| | |
+|---|---|
+| Proposal | "Adopt Lens as the reference feed for this treasury" |
+| Snapshot | Sepolia block 11,676,782 |
+| `provenWeight(voter, 11676782)` | 1,000,000 LVOTE |
+| `forVotes` after the vote | 1,000,000 LVOTE |
+| `weightUsed` | 1,000,000 LVOTE |
+| A second vote from the same address | reverts `AlreadyVoted(0, 0xcf7a…)` |
+
+| Step | Chain | Hash |
+|---|---|---|
+| Probe the holder's weight at the snapshot | Sepolia | `0x6f80012b138dfbbefe0166e1a94ac16700d795de6fa035f6d8f76c32c352d1f6` |
+| Open the proposal | CC3 testnet | `0x1abd0b22275a7c7e48538212c4ada66a6a4e981a9ef7dc7dc5a5c387a2d67346` |
+| Cast the vote | CC3 testnet | `0x1fbd183ee2fec918733f100f101f54bcf311b4af262dccaa3b9870dd4846adf5` |
+
+No token moved. No bridge, no snapshot API, no tally anybody had to be trusted about. The
+weight was read from the token's own checkpoints on Sepolia and the log proving that read
+was verified by the precompile.
+
+**About the token.** `LensVoteToken` is a real OpenZeppelin `ERC20Votes` deployment, not a
+mock, but it is ours: Sepolia has almost no checkpointed governance tokens and the UNI
+deployment that exists is held by nobody who could demonstrate with it. Its checkpoints
+are genuine — `getPastVotes` returns 0 at block 11,676,781 and 1,000,000 at 11,676,782,
+the block the delegation landed in. Every other part of the path is the production one,
+and pointing this at a widely-held token changes one constructor argument.
 
 ### The refusals, on the live chain
 
