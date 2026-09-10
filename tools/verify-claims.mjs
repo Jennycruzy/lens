@@ -33,6 +33,8 @@ const mainnet = sourceProvider(1);
 const claimedContracts = [
   { label: 'LensRegistry (current)', address: addresses.registry, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'StateProbe (current)', address: addresses.probe, on: sepolia, chain: 'Sepolia' },
+  // Same address on both source chains by construction; the README says so, so it is checked.
+  { label: 'StateProbe (mainnet)', address: addresses.probe, on: mainnet, chain: 'Ethereum mainnet' },
   { label: 'LensAggregatorV3', address: env.LENS_AGGREGATOR_ETHUSD, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'ReserveMonitor', address: env.LENS_RESERVE_MONITOR, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'LensMarket', address: env.LENS_MARKET, on: creditcoin, chain: 'CC3 testnet' },
@@ -102,6 +104,16 @@ for (const [key, label] of [[3, 'Ethereum mainnet'], [1, 'Sepolia']]) {
     `chainId ${source.chainId}, probe ${source.probe}`,
   );
 }
+
+// The probe must be the same bytecode on both source chains, or "one address
+// everywhere" is a claim about addresses rather than about code.
+const sepoliaCode = await sepolia.getCode(addresses.probe);
+const mainnetCode = await mainnet.getCode(addresses.probe);
+check(
+  'the probe is identical bytecode on Sepolia and Ethereum mainnet',
+  sepoliaCode === mainnetCode && sepoliaCode !== '0x',
+  `${(sepoliaCode.length - 2) / 2} bytes on both`,
+);
 
 const topic = await registry.PROBED_SIGNATURE();
 check(
