@@ -103,8 +103,8 @@ rather than reporting the wrong chain's state.
 | Attestation lag, Sepolia | 41 blocks, about 8.2 minutes | `VERIFIED.md` |
 | Three real mainnet feeds in one probe transaction | 155,260 gas | `READ-PATH.md` |
 | Proving one feed to Creditcoin | 200,480 gas | measured |
-| Proving two feeds under one shared continuity proof | 231,101 gas | measured |
-| **Marginal cost of a second feed in the same proof** | **30,621 gas** | the two rows above |
+| Proving one source transaction carrying two feeds | 231,101 gas | measured |
+| **Marginal cost of a second feed in the same source transaction** | **30,621 gas** | the two rows above |
 
 That last number is the argument for batching. The first feed in a proof costs 200,480
 gas; the second costs 30,621, because the continuity proof is paid for once and the

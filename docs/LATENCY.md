@@ -61,13 +61,24 @@ a three-feed batch about **$0.02**.
 | Operation | Gas |
 |---|---|
 | Proving one feed | 200,480 |
-| Proving two feeds under one continuity proof | 231,101 |
-| **Marginal cost of each additional feed in the same proof** | **30,621** |
+| Proving one source transaction carrying two feeds | 231,101 |
+| **Marginal cost of each additional feed in the same source transaction** | **30,621** |
 
-That last number is the argument for batching. The continuity proof is paid for once; only
-the Merkle proof is added per query. The precompile accepts ten queries under one
-continuity proof, so a full batch approaches roughly **48,000 gas per feed** against
-200,480 proven one at a time — about a quarter of the cost.
+**Two different kinds of batching, which an earlier version of this file conflated.**
+
+*Several feeds in one source transaction.* `probeMany` reads many targets and emits a log
+each, and one `submitProof` proves that single transaction. Every extra log costs
+**30,621 gas** to decode and record — the 200,480 → 231,101 measurement above. This is
+what the deployment does today.
+
+*Several source transactions under one shared continuity proof.* `submitBatch` takes up to
+ten separate transactions, each with its own Merkle proof, sharing one continuity proof.
+That is what amortises the continuity chain, and it is the path for feeds probed in
+different blocks.
+
+The first is measured. The second is implemented and unit-tested but had not been
+exercised on chain when this file was first written, and no gas figure was honestly
+available for it. It is measured below once it has been.
 
 ## What the lag means for a feed
 
