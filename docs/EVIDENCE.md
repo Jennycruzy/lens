@@ -75,7 +75,7 @@ answering questions about Ethereum, through the precompile, with no oracle invol
 | `frontierOf(1)` — Sepolia | 11,676,100 |
 | `frontierOf(99)` — a key that is not attested | reverts `UnknownChainKey` |
 | `MAX_BATCH()` | 10, matching the precompile's limit on queries under one continuity proof |
-| `PROBED_SIGNATURE()` | `0xcc205dbd77fbafc012eccc26fdeae09611101621c9e62bb7de830d156832dbfe` |
+| `PROBED_SIGNATURE()` | `0x2373d36eb926cb2c85ee44b32054271c7ae2854ea55412b676125465f04b94fc` |
 
 The chain-key binding was asserted on-chain by the constructor and can be read back:
 
