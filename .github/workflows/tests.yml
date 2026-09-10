@@ -1,0 +1,82 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Nightly, for the runs that touch live networks and are too slow per-commit.
+    - cron: '17 3 * * *'
+
+jobs:
+  fast:
+    name: unit, adversarial, invariant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - run: npm ci --no-audit --no-fund
+      - run: forge install foundry-rs/forge-std --no-git
+
+      - name: build
+        run: forge build
+
+      # Everything that needs no network. These gate every commit.
+      - name: unit, adversarial, invariant and property tests
+        run: forge test --no-match-path 'contracts/test/fork/*'
+
+      - name: formatting
+        run: forge fmt --check
+        continue-on-error: true
+
+  live:
+    name: fork tests and live checks
+    runs-on: ubuntu-latest
+    # Fork tests hit public RPCs, which rate-limit. Running them per-commit on a busy
+    # repository gets the runner throttled and the failures are not about the code.
+    if: github.event_name == 'schedule' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - run: npm ci --no-audit --no-fund
+      - run: forge install foundry-rs/forge-std --no-git
+
+      - name: fork tests against real mainnet contracts
+        env:
+          ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC || 'https://ethereum-rpc.publicnode.com' }}
+        run: forge test --match-path 'contracts/test/fork/*'
+
+      - name: every dependency, re-derived from the live network
+        run: node tools/verify-infra.mjs
+
+      # These need a deployment to check against, so they only run where one is
+      # configured. A missing .env is not a failure, it is an absent deployment.
+      - name: claims and differential
+        if: ${{ secrets.CC3_TESTNET_RPC != '' }}
+        env:
+          CC3_TESTNET_RPC: ${{ secrets.CC3_TESTNET_RPC }}
+        run: |
+          cp .env.example .env
+          node tools/verify-claims.mjs
+          node tools/differential.mjs
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci --no-audit --no-fund
+      - run: forge install foundry-rs/forge-std --no-git
+      - name: coverage over src
+        env:
+          ETHEREUM_RPC: https://ethereum-rpc.publicnode.com
+        run: forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary
