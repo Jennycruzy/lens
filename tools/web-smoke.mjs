@@ -90,12 +90,15 @@ const cards = [
   ['Circuit breaker', C.breaker, 'function status() view returns (bool,uint8)'],
   ['Governance', C.votePort, 'function proposalCount() view returns (uint256)'],
   ['Snapshot claims', C.snapshotProver, 'function campaignCount() view returns (uint256)'],
+  ['Feed escrow', C.escrow, 'function fundingOf(bytes32) view returns ((uint256,uint256,uint64,uint64,address,uint64))'],
 ];
 for (const [label, address, fragment] of cards) {
   try {
     const c = new Contract(address, [fragment], creditcoin);
     const name = fragment.match(/function (\w+)/)[1];
-    const result = await c[name]();
+    const result = name === 'fundingOf'
+      ? await c[name]('0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610')
+      : await c[name]();
     say(true, `${label} — ${Array.isArray(result) ? result.join(', ') : result}`);
   } catch (e) {
     say(false, `${label} — ${e.shortMessage ?? e.message}`);

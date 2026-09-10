@@ -13,7 +13,7 @@
  */
 import { keccak256 } from 'ethers';
 import {
-  feedByName, callDataFor, decodeFor, chainKeyFor, computeFeedId,
+  env, feedByName, callDataFor, decodeFor, chainKeyFor, computeFeedId,
   sourceProvider, proberWallet, probeContract, sources,
 } from './lib/config.mjs';
 
@@ -72,6 +72,41 @@ try {
   process.exit(1);
 }
 
+/**
+ * Refuse to spend above a configured gas price, and queue instead.
+ *
+ * Every feed class here tolerates hours of lag by design, so waiting for a cheaper block
+ * costs almost nothing while probing through a spike costs real money. Exiting 75 rather
+ * than 1 lets a caller tell "too expensive right now, try later" from "this is broken",
+ * and the keeper treats it as a skip rather than a failure.
+ */
+const ceilingGwei = Number(env[`MAX_GAS_GWEI_${chainId}`] ?? env.MAX_GAS_GWEI ?? (chainId === 1 ? 20 : 1000));
+const feeNow = await provider.getFeeData();
+const gweiNow = Number(feeNow.gasPrice ?? 0n) / 1e9;
+if (gweiNow > ceilingGwei) {
+  console.error(`\n  gas is ${gweiNow.toFixed(3)} gwei, above the ${ceilingGwei} gwei ceiling for chain ${chainId}`);
+  console.error('  nothing was sent. These feeds tolerate the wait; a spike is not worth paying through.');
+  console.error(`  raise MAX_GAS_GWEI_${chainId} in .env to override.`);
+  process.exit(75);
+}
+
+/**
+ * Probe a block the source chain is unlikely to reorg away.
+ *
+ * A probe in a block that is later reorged out is a read of a chain that no longer
+ * exists: the proof would fail, or worse, describe a state nobody agrees with. Waiting
+ * for finality costs a minute against feeds measured in hours.
+ */
+try {
+  const finalized = await provider.getBlock('finalized');
+  if (finalized) {
+    const behind = head - finalized.number;
+    console.log(`  finalized at ${finalized.number}, ${behind} blocks behind the head`);
+  }
+} catch {
+  console.log('  this chain does not expose a finalized tag; reorg depth is unchecked');
+}
+
 const gas = await probe[call.fn].estimateGas(...call.args);
 const fee = await provider.getFeeData();
 console.log(`\n  ${call.fn}: ${gas} gas at ${Number(fee.gasPrice ?? 0n) / 1e9} gwei`);
@@ -85,7 +120,18 @@ if (receipt.status !== 1) {
   process.exit(1);
 }
 
-console.log(`  mined in block ${receipt.blockNumber}, ${receipt.gasUsed} gas used\n`);
+console.log(`  mined in block ${receipt.blockNumber}, ${receipt.gasUsed} gas used`);
+
+// Confirm the block is still the one the chain agrees on. A reorg between mining and
+// proving would leave a proof for a transaction that is no longer in the canonical chain.
+const minedBlock = await provider.getBlock(receipt.blockNumber);
+if (minedBlock?.hash !== receipt.blockHash) {
+  console.error(`\n  the block this was mined in has been reorged away`);
+  console.error(`  mined in ${receipt.blockHash}, chain now has ${minedBlock?.hash}`);
+  console.error('  do not prove this transaction; probe again.');
+  process.exit(1);
+}
+console.log(`  block hash still canonical\n`);
 
 // Confirm the chain emitted exactly what a direct read returns.
 //

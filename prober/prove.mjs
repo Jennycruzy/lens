@@ -11,7 +11,7 @@
 import { Contract } from 'ethers';
 import {
   env, chainKeyFor, sourceProvider, creditcoin, creditcoinWallet, registryContract,
-  computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO,, addresses
+  computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO, addresses,
 } from './lib/config.mjs';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
 
@@ -149,8 +149,24 @@ try {
     console.log(`  submission would record ${would} observation(s)`);
   }
 } catch (e) {
+  const why = describeRevert(e);
+
+  /**
+   * A query that has already been proven is not a failure.
+   *
+   * Two probers racing the same feed is the normal case, not an error: whoever lands
+   * first records the observation and the other finds it spent. Treating that as a
+   * failure would have every honest prober logging errors for doing its job, and would
+   * make a retry loop hammer a query that can never succeed again.
+   */
+  if (/QueryAlreadyConsumed|ObservationNotNewer/.test(why)) {
+    console.log(`\n  already recorded by someone else: ${why}`);
+    console.log('  nothing to do; this is the normal outcome when probers overlap.');
+    process.exit(0);
+  }
+
   console.error(`\n  the ${escrow ? 'escrow' : 'registry'} rejected this proof`);
-  console.error('  ' + describeRevert(e));
+  console.error('  ' + why);
   process.exit(1);
 }
 

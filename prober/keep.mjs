@@ -41,6 +41,13 @@ async function cycle() {
   for (const [chainId, names] of Object.entries(byChain)) {
     log(`probing ${names.length} feed(s) on chain ${chainId}`);
     const probe = await run('prober/probe.mjs', names);
+
+    // 75 is the gas ceiling refusing, which is the guard working rather than a fault.
+    // These feeds tolerate hours; waiting for a cheaper block costs nothing.
+    if (probe.code === 75) {
+      log('  priced out: gas above the ceiling, so nothing was sent. Trying again next cycle.');
+      continue;
+    }
     if (probe.code !== 0) {
       log(`  probe failed, leaving the previous values to age out\n${probe.out.trim().split('\n').slice(-3).join('\n')}`);
       continue;
@@ -58,7 +65,9 @@ async function cycle() {
     const matched = (prove.out.match(/byte-equal/g) ?? []).length;
     const diverged = (prove.out.match(/MISMATCH/g) ?? []).length;
 
-    if (prove.code === 0 && diverged === 0) {
+    if (prove.out.includes('already recorded by someone else')) {
+      log('  another prober got there first; the feed is fresh either way');
+    } else if (prove.code === 0 && diverged === 0) {
       log(`  proved ${matched} feed(s), all byte-equal to their source`);
     } else {
       log(`  proof cycle did not complete cleanly (${diverged} divergence(s))`);

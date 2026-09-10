@@ -250,6 +250,24 @@ const CONSUMERS = [
     abi: ['function campaignCount() view returns (uint256)'],
     read: async (c) => ({ v: String(await c.campaignCount()), n: 'eligibility proven, never published' }),
   },
+  {
+    label: 'Feed escrow',
+    address: () => C.escrow,
+    abi: [
+      'function fundingOf(bytes32) view returns ((uint256 balance,uint256 rewardPerUpdate,uint64 minBlocksBetweenRewards,uint64 lastRewardedHeight,address funder,uint64 refundableAfter))',
+    ],
+    read: async (c) => {
+      // The ETH/USD feed is the one that is funded; a feed nobody funds still updates.
+      const f = await c.fundingOf('0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610');
+      if (f.funder === '0x0000000000000000000000000000000000000000') {
+        return { v: 'unfunded', n: 'proving works without any reward at all' };
+      }
+      return {
+        v: `${ethers.formatEther(f.balance)} tCTC`,
+        n: `${ethers.formatEther(f.rewardPerUpdate)} per update — paid to whoever proves it`,
+      };
+    },
+  },
 ];
 
 async function loadConsumers() {
