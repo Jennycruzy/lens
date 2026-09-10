@@ -134,9 +134,32 @@ asserted.
 
 ---
 
+## What the proof builder exposes
+
+Neither host publishes a schema at any of the usual paths, but the SDK names the routes
+and both hosts answer them:
+
+| Route | Purpose |
+|---|---|
+| `/api/v1/proof-by-tx/{chainKey}/{txHash}` | the proof for one transaction |
+| `/api/v1/attested-height/{chainKey}` | how far the builder itself has ingested |
+
+**The builder trails the precompile.** Measured 2026-09-10: the ChainInfo precompile
+reported Sepolia attested to 11,676,120 while both builders reported 11,676,110. The
+builder keeps its own cache, so a height that is attested on-chain is not necessarily
+one the builder can prove yet.
+
+That matters more than the ten-block gap suggests. Asking for a proof on the strength of
+the precompile alone returns a not-found, which is indistinguishable in shape from "that
+transaction does not exist". Waiting on the slower of the two answers is what keeps a
+timing gap from being recorded as a missing transaction.
+
+Both hosts are live and answer identically, so the failover chain has two independent
+legs before the SDK's local builder is needed at all.
+
 ## Corrections to the design notes
 
-Four things were assumed and turned out to be wrong. They are recorded because the
+Six things were assumed and turned out to be wrong. They are recorded because the
 contract interfaces changed as a result.
 
 1. **Chain key is `uint64`, not `uint32`.** Every signature carrying a chain key was
@@ -151,6 +174,18 @@ contract interfaces changed as a result.
 4. **`chainName` is ABI type `bytes`, not `string`,** even though the SDK's TypeScript
    interface declares it as `string`. Decoding it as a string yields hex. Minor, but it
    silently produced unreadable output in the first run of the verification tool.
+5. **`get_chain_by_key` returns a different shape from `get_supported_chains`.** The
+   first wraps the chain struct with a presence flag —
+   `ChainInfoResult { ChainInfo info; bool exists; }` — while the second returns the bare
+   struct in an array. Reading the wrong one made the registry constructor revert on
+   Creditcoin **with no revert data at all**, which is not diagnosable from the error.
+   No local test could have caught it, because the precompile does not exist off-chain.
+6. **`forge script` cannot deploy to Creditcoin.** Two independent reasons: CC3 block
+   headers carry no `prevrandao`, which Foundry's header validation requires from Paris
+   onward, and the precompiles are native code with no bytecode, so a local fork answers
+   `call to non-contract address 0x...fD3` before the script reaches the network.
+   Deployment goes through the node instead. Both are recorded because anyone else
+   building here will hit them within an hour.
 
 ## A false pass, and the fix
 
@@ -175,11 +210,26 @@ Measured against the live network, in order of when they block work:
 |---|---|---|
 | Largest returndata that survives the proof path | bounds what a probe may return | needs the first end-to-end read |
 | Log index numbering, block-wide or per-transaction, in the decoder | wrong reading binds the wrong log | needs the first end-to-end read |
-| Whether `eth_estimateGas` is usable on pallet-evm for precompile calls | decides the prober's gas model | needs a real submission |
 | Attestation lag distribution over 24h | published as a measurement, not a guess | one sample so far, collection running |
 | Frontier behaviour under a source-chain reorg | the circuit breaker trips on frontier regression | observational, needs a reorg |
 | Proof builder rate limits and auth | failover policy | neither host exposes a schema at the usual paths |
 | Sourcify endpoint for CC3 testnet | contract verification must be a full match | still open; Blockscout is confirmed at `creditcoin-testnet.blockscout.com` and the tCTC faucet is a Discord bot, both written up in `FUNDING.md` |
+
+### `eth_estimateGas` on pallet-evm — answered, and it is worse than expected
+
+Not merely unreliable: on failure it returns
+
+```
+VM Exception while processing transaction: revert   data: '0x'
+```
+
+with no reason, no selector, and no custom error. A contract that reverts for six
+different reasons produces the same six-character answer to all of them.
+
+An `eth_call` first is therefore not an optimisation, it is the only way to learn
+anything. That is how the constructor bug above was found: the estimate said "revert",
+and the call said which shape was wrong. Every path in the prober that sends a
+transaction calls first.
 
 Nothing above is a guess in the codebase. Where a value is unknown, the code reads it at
 runtime or refuses.
