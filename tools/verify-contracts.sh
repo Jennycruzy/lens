@@ -9,6 +9,9 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 export PATH="$HOME/.foundry/bin:$PATH"
 
+PROBE_MAINNET=${LENS_PROBE_1:-$LENS_PROBE}
+PROBE_SEPOLIA=${LENS_PROBE_11155111:-$LENS_PROBE}
+
 BS=https://creditcoin-testnet.blockscout.com
 V=(--verifier blockscout --verifier-url "$BS/api/" --compiler-version 0.8.30)
 
@@ -31,7 +34,7 @@ verify() {
 ENC() { cast abi-encode "$@"; }
 
 verify "$LENS_REGISTRY"        contracts/src/LensRegistry.sol:LensRegistry \
-  "$(ENC 'constructor(uint64[],uint64[],address[])' "[3,1]" "[1,11155111]" "[$LENS_PROBE,$LENS_PROBE]")"
+  "$(ENC 'constructor(uint64[],uint64[],address[])' "[3,1]" "[1,11155111]" "[$PROBE_MAINNET,$PROBE_SEPOLIA]")"
 
 verify "$LENS_AGGREGATOR_ETHUSD" contracts/src/LensAggregatorV3.sol:LensAggregatorV3 \
   "$(ENC 'constructor(address,uint64,bytes32,uint8,uint256,string)' "$LENS_REGISTRY" 1 \

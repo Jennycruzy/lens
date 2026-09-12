@@ -54,6 +54,11 @@ for (const feed of C.feeds) {
     continue;
   }
   const o = await registry.observationOf(id);
+  const frontier = Number(await registry.frontierOf(chainKey));
+  if (Number(o.probeHeight) > frontier) {
+    say(false, feed.name + ': refused because frontier ' + frontier + ' regressed below observation ' + o.probeHeight);
+    continue;
+  }
 
   // The verify button's comparison, run here. A node that will not serve state at that
   // height has told us nothing about whether the values agree, so it is kept apart from

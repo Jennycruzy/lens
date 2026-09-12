@@ -10,7 +10,7 @@
  * can gate a commit.
  */
 import { readFileSync, readdirSync } from 'node:fs';
-import { JsonRpcProvider, Contract } from 'ethers';
+import { JsonRpcProvider, Contract, Interface } from 'ethers';
 import { env, creditcoin, sourceProvider, addresses, artifacts } from '../prober/lib/config.mjs';
 
 const docs = readdirSync(new URL('../docs/', import.meta.url))
@@ -57,7 +57,7 @@ for (const c of claimedContracts) {
   const code = await c.on.getCode(c.address);
   const hasCode = code !== '0x';
   // Precompiles are native and carry no bytecode, so presence is not code length.
-  const ok = c.precompile ? true : hasCode;
+  const ok = named && (c.precompile ? true : hasCode);
   check(
     `${c.label} on ${c.chain}`,
     ok,
@@ -68,28 +68,27 @@ for (const c of claimedContracts) {
 
 // --- transaction hashes the documentation names ------------------------------
 console.log('\nTransactions named in the documentation\n');
-const hashes = [...new Set(docs.match(/0x[a-fA-F0-9]{64}/g) ?? [])];
-let txChecked = 0;
-for (const h of hashes) {
-  let found = null;
-  for (const [name, p] of [['CC3 testnet', creditcoin], ['Sepolia', sepolia]]) {
-    try {
-      const r = await p.getTransactionReceipt(h);
-      if (r) {
-        found = { name, r };
-        break;
-      }
-    } catch { /* not on this chain */ }
-  }
-  if (!found) continue; // feed ids and topics also match this shape; skip non-transactions
-  txChecked++;
-  check(
-    `transaction on ${found.name}`,
-    found.r.status === 1,
-    `${h.slice(0, 20)}… block ${found.r.blockNumber}, status ${found.r.status}`,
-  );
+const providers = { 'CC3 testnet': creditcoin, Sepolia: sepolia, 'Ethereum mainnet': mainnet };
+const transactions = new Map();
+const addTransaction = (hash, name) => {
+  if (providers[name]) transactions.set(`${name}:${hash.toLowerCase()}`, { hash, name, provider: providers[name] });
+};
+for (const row of docs.matchAll(/^\|.*\|\s*(CC3 testnet|Sepolia|Ethereum mainnet)\s*\|.*?(0x[a-fA-F0-9]{64})/gm)) addTransaction(row[2], row[1]);
+for (const link of docs.matchAll(/https?:\/\/([^/\s)]+)\/tx\/(0x[a-fA-F0-9]{64})/g)) {
+  const host = link[1].toLowerCase();
+  const name = { 'creditcoin-testnet.blockscout.com': 'CC3 testnet', 'sepolia.etherscan.io': 'Sepolia', 'etherscan.io': 'Ethereum mainnet' }[host];
+  if (name) addTransaction(link[2], name);
+  else check('documented transaction link has a recognized chain', false, link[0]);
 }
-check('every documented transaction was located and succeeded', txChecked > 0, `${txChecked} checked`);
+let txChecked = 0;
+for (const tx of transactions.values()) {
+  txChecked++;
+  let receipt;
+  try { receipt = await tx.provider.getTransactionReceipt(tx.hash); }
+  catch (e) { check(`transaction on ${tx.name}`, false, `${tx.hash.slice(0, 20)}… ${e.shortMessage ?? e.message}`); continue; }
+  check(`transaction on ${tx.name}`, Boolean(receipt) && receipt.status === 1, receipt ? `${tx.hash.slice(0, 20)}… block ${receipt.blockNumber}, status ${receipt.status}` : `${tx.hash.slice(0, 20)}… not found`);
+}
+check('every documented transaction was located and succeeded', txChecked === transactions.size && transactions.size > 0, `${txChecked}/${transactions.size} checked`);
 
 // --- values the documentation quotes, re-read from the chain ------------------
 console.log('\nValues quoted in the documentation\n');
@@ -149,7 +148,17 @@ if (addresses.aggregator) {
       `updatedAt ${updatedAt}, Sepolia block ${roundId} timestamp ${block.timestamp}`,
     );
   } catch (e) {
-    check('aggregator readable', false, e.shortMessage ?? e.message);
+    const staleError = new Interface(['error FeedStale(bytes32,uint256,uint256)']);
+    const data = e.data ?? e.info?.error?.data ?? e.error?.data;
+    let stale = false;
+    if (typeof data === 'string') {
+      try { stale = staleError.parseError(data)?.name === 'FeedStale'; } catch {}
+    }
+    check(
+      stale ? 'aggregator refuses a stale observation' : 'aggregator readable',
+      stale,
+      stale ? `the adapter failed closed with FeedStale (${data.slice(0, 14)}…)` : e.shortMessage ?? e.message,
+    );
   }
 }
 

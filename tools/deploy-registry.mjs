@@ -40,11 +40,11 @@ const env = Object.fromEntries(
     .map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]),
 );
 
+const deployments = JSON.parse(readFileSync(new URL('../deployments.json', import.meta.url), 'utf8'));
 const CHAIN_INFO = '0x0000000000000000000000000000000000000fd3';
-// The probe address is a deployment fact, so it comes from the committed file unless
-// .env overrides it — which is how a fork points at its own probe.
-const PROBE = env.LENS_PROBE || deployments.sources['11155111'].probe;
-if (!PROBE) throw new Error('no probe address: deploy the probe first, or set LENS_PROBE');
+// Probe addresses are facts per source chain. A single address is only a fallback for
+// deployments made at the same nonce on both chains.
+const probeFor = (chainId) => env[`LENS_PROBE_${chainId}`] || deployments.sources[String(chainId)]?.probe || env.LENS_PROBE;
 
 // The native chain ids we want, never the keys. Keys are environment-local.
 const WANTED = [
@@ -71,14 +71,16 @@ const probes = [];
 for (const want of WANTED) {
   const found = supported.find((c) => c.chainId === want.chainId);
   if (!found) throw new Error(`${want.label} (chain id ${want.chainId}) is not attested on this environment`);
+  const probe = probeFor(want.chainId);
+  if (!probe) throw new Error(`no probe address for source chain ${want.chainId}; deploy it first`);
   console.log(`  ${want.label.padEnd(18)} chain id ${String(found.chainId).padEnd(9)} -> key ${found.chainKey}  "${found.chainName}"`);
   keys.push(found.chainKey);
   ids.push(found.chainId);
-  probes.push(PROBE);
+  probes.push(probe);
 }
 
 console.log(`\n  deployer ${wallet.address}`);
-console.log(`  probe    ${PROBE} (same address on both source chains)`);
+console.log(`  probes   ${probes.join(", ")}`);
 
 if (!broadcast) {
   console.log('\nnothing sent. re-run with --broadcast to deploy.\n');

@@ -78,7 +78,7 @@ window.LENS = {
       chainId: 11155111,
       target: '0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD',
       calldata: '0x7be53ca1000000000000000000000000fa0e305e0f46ab04f00ae6b5f4560d61a2183e00',
-      decode: (hex) => `${(Number(BigInt(hex)) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 3 })} WETH`,
+      decode: (hex) => BigInt(hex) === 1n ? 'true (proven)' : 'false (proven)',
     },
     {
       name: "sepolia.aave.isPoolAdminStranger",
@@ -86,7 +86,7 @@ window.LENS = {
       chainId: 11155111,
       target: '0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD',
       calldata: '0x7be53ca1000000000000000000000000000000000000000000000000000000000000dead',
-      decode: (hex) => `${(Number(BigInt(hex)) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 3 })} WETH`,
+      decode: (hex) => BigInt(hex) === 1n ? 'true (proven)' : 'false (proven)',
     },
     {
       name: "mainnet.steth.rate",

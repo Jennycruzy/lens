@@ -95,9 +95,9 @@ await deploy('CircuitBreaker', artifact('CircuitBreaker'),
 await deploy('FeedEscrow', artifact('FeedEscrow'), () => [addresses.registry]);
 
 // The governance consumers read a source-chain token that keeps checkpoints.
-const VOTES_TOKEN = '0x5b071b590a59395fE4025A0Ccc1FcC931AAc1830';
+const VOTES_TOKEN = feedByName('sepolia.lvote.pastVotes').target;
 await deploy('VotePort', artifact('VotePort'),
-  () => [addresses.registry, chainKey, VOTES_TOKEN, 5000n]);
+  () => [addresses.registry, chainKey, VOTES_TOKEN, '0x3a46b1a8', 5000n]);
 await deploy('SnapshotProver', artifact('SnapshotProver'),
   () => [addresses.registry, chainKey, 5000n]);
 

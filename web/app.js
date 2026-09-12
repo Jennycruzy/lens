@@ -88,10 +88,13 @@ async function loadFeeds() {
       }
       const o = await registry.observationOf(id);
       const frontier = await registry.frontierOf(chainKey);
-      const age = frontier > o.probeHeight ? Number(frontier - o.probeHeight) : 0;
+      const regressed = o.probeHeight > frontier;
+      const age = regressed ? Infinity : Number(frontier - o.probeHeight);
 
       if (!o.callSucceeded) {
         valueCell.innerHTML = '<span class="bad">the source read failed</span>';
+      } else if (regressed) {
+        valueCell.innerHTML = '<span class="bad">attestation frontier regressed; refused</span>';
       } else if (o.truncated) {
         valueCell.innerHTML = '<span class="warn">truncated, not decodable</span>';
       } else {
@@ -101,8 +104,13 @@ async function loadFeeds() {
           `<div class="dim mono">${src.label.split(' ')[1] ?? ''} block ${o.probeHeight}</div>`;
       }
 
-      ageCell.className = age > 600 ? 'warn' : '';
-      ageCell.innerHTML = `${age} blocks<div class="dim" style="font-size:12px">~${Math.round((age * 12) / 60)} min</div>`;
+      if (regressed) {
+        ageCell.className = 'bad';
+        ageCell.textContent = 'frontier regressed — feed unavailable';
+      } else {
+        ageCell.className = age > 600 ? 'warn' : '';
+        ageCell.innerHTML = `${age} blocks<div class="dim" style="font-size:12px">~${Math.round((age * 12) / 60)} min</div>`;
+      }
 
       const btn = el('button', '', 'verify');
       btn.onclick = () => verify(btn, checkCell, feed, chainKey, o);

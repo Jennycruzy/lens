@@ -18,6 +18,9 @@ const OUT = new URL('../web/config.js', import.meta.url);
 /** How a feed's raw bytes become something a person can read, per feed class. */
 function decoderFor(feed) {
   const sig = feed.signature;
+  if (/bool/.test(sig)) {
+    return `(hex) => BigInt(hex) === 1n ? 'true (proven)' : 'false (proven)'`;
+  }
   if (/int(256|56)/.test(sig) && feed.name.includes('ethUsd')) {
     return `(hex) => \`$\${(Number(BigInt(hex)) / 1e8).toFixed(2)} per ETH\``;
   }

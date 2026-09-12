@@ -65,6 +65,7 @@ for (const feed of feeds) {
 
 const compared = rows.filter((r) => r.status === 'match' || r.status === 'DIVERGED');
 const diverged = rows.filter((r) => r.status === 'DIVERGED');
+const unreachable = rows.filter((r) => r.status === 'unreachable');
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -72,6 +73,7 @@ const report = {
   creditcoinHeight: await creditcoin.getBlockNumber(),
   compared: compared.length,
   diverged: diverged.length,
+  unreachable: unreachable.length,
   rows,
 };
 
@@ -94,7 +96,7 @@ if (process.argv.includes('--json')) {
     }
     if (r.note) console.log(`          ${r.note}`);
   }
-  console.log(`\n${compared.length} compared, ${diverged.length} diverged  ->  docs/evidence/differential.json\n`);
+  console.log(`\n${compared.length} compared, ${diverged.length} diverged, ${unreachable.length} unreachable  ->  docs/evidence/differential.json\n`);
 }
 
-process.exit(diverged.length ? 1 : 0);
+process.exit(diverged.length || unreachable.length ? 1 : 0);
