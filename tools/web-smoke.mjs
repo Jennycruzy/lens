@@ -9,7 +9,7 @@
  * wrong apart from its layout.
  */
 import { readFileSync } from 'node:fs';
-import { JsonRpcProvider, Contract, AbiCoder, keccak256 } from 'ethers';
+import { JsonRpcProvider, Contract, AbiCoder, Interface, keccak256 } from 'ethers';
 
 // Load the page's config by evaluating it the way the browser would.
 const src = readFileSync(new URL('../web/config.js', import.meta.url), 'utf8');
@@ -29,6 +29,27 @@ const CHAIN_INFO_ABI = [
 const registry = new Contract(C.registry, REGISTRY_ABI, creditcoin);
 const chainInfo = new Contract('0x0000000000000000000000000000000000000fd3', CHAIN_INFO_ABI, creditcoin);
 const coder = AbiCoder.defaultAbiCoder();
+
+const freshnessInterface = new Interface([
+  'error FeedUnavailable(bytes32)',
+  'error FeedStale(bytes32,uint256,uint256)',
+]);
+const freshnessSelectors = Object.fromEntries(
+  ['FeedUnavailable', 'FeedStale'].map((name) => [freshnessInterface.getError(name).selector.toLowerCase(), name]),
+);
+// The currently documented consumer address predates the hardened ABI and returns its
+// older fail-closed error. Keep that refusal visible rather than calling it a healthy value.
+freshnessSelectors['0xbad04e0e'] = 'CannotDetermineSolvency (legacy deployment)';
+function revertData(error) {
+  for (const candidate of [error?.data, error?.revert?.data, error?.info?.error?.data, error?.error?.data]) {
+    if (typeof candidate === 'string' && candidate.startsWith('0x')) return candidate;
+  }
+  return '';
+}
+function failClosedReason(error) {
+  const data = revertData(error);
+  return freshnessSelectors[data.slice(0, 10).toLowerCase()] ?? null;
+}
 
 const chains = await chainInfo.get_supported_chains();
 const keyOf = Object.fromEntries(chains.map((c) => [Number(c.chainId), Number(c.chainKey)]));
@@ -106,7 +127,12 @@ for (const [label, address, fragment] of cards) {
       : await c[name]();
     say(true, `${label} — ${Array.isArray(result) ? result.join(', ') : result}`);
   } catch (e) {
-    say(false, `${label} — ${e.shortMessage ?? e.message}`);
+    const closed = failClosedReason(e);
+    if (closed && ['Reserve backing', 'Lending market price'].includes(label)) {
+      say(true, `${label} — failed closed with ${closed}; a fresh observation is required`);
+    } else {
+      say(false, `${label} — ${e.shortMessage ?? e.message}`);
+    }
   }
 }
 

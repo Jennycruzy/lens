@@ -11,7 +11,7 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { JsonRpcProvider, Contract, Interface } from 'ethers';
-import { env, creditcoin, sourceProvider, addresses, artifacts } from '../prober/lib/config.mjs';
+import { env, creditcoin, sourceProvider, probeAddress, addresses, artifacts } from '../prober/lib/config.mjs';
 
 const docs = readdirSync(new URL('../docs/', import.meta.url))
   .filter((f) => f.endsWith('.md'))
@@ -32,9 +32,8 @@ const mainnet = sourceProvider(1);
 // --- contracts the documentation names, and where it says they live ----------
 const claimedContracts = [
   { label: 'LensRegistry (current)', address: addresses.registry, on: creditcoin, chain: 'CC3 testnet' },
-  { label: 'StateProbe (current)', address: addresses.probe, on: sepolia, chain: 'Sepolia' },
-  // Same address on both source chains by construction; the README says so, so it is checked.
-  { label: 'StateProbe (mainnet)', address: addresses.probe, on: mainnet, chain: 'Ethereum mainnet' },
+  { label: 'StateProbe (current)', address: probeAddress(11155111), on: sepolia, chain: 'Sepolia' },
+  { label: 'StateProbe (mainnet)', address: probeAddress(1), on: mainnet, chain: 'Ethereum mainnet' },
   { label: 'LensAggregatorV3', address: addresses.aggregator, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'ReserveMonitor', address: addresses.reserveMonitor, on: creditcoin, chain: 'CC3 testnet' },
   { label: 'LensMarket', address: addresses.market, on: creditcoin, chain: 'CC3 testnet' },
@@ -80,15 +79,16 @@ for (const link of docs.matchAll(/https?:\/\/([^/\s)]+)\/tx\/(0x[a-fA-F0-9]{64})
   if (name) addTransaction(link[2], name);
   else check('documented transaction link has a recognized chain', false, link[0]);
 }
-let txChecked = 0;
+let txSucceeded = 0;
 for (const tx of transactions.values()) {
-  txChecked++;
   let receipt;
   try { receipt = await tx.provider.getTransactionReceipt(tx.hash); }
   catch (e) { check(`transaction on ${tx.name}`, false, `${tx.hash.slice(0, 20)}… ${e.shortMessage ?? e.message}`); continue; }
-  check(`transaction on ${tx.name}`, Boolean(receipt) && receipt.status === 1, receipt ? `${tx.hash.slice(0, 20)}… block ${receipt.blockNumber}, status ${receipt.status}` : `${tx.hash.slice(0, 20)}… not found`);
+  const succeeded = Boolean(receipt) && receipt.status === 1;
+  if (succeeded) txSucceeded++;
+  check(`transaction on ${tx.name}`, succeeded, receipt ? `${tx.hash.slice(0, 20)}… block ${receipt.blockNumber}, status ${receipt.status}` : `${tx.hash.slice(0, 20)}… not found`);
 }
-check('every documented transaction was located and succeeded', txChecked === transactions.size && transactions.size > 0, `${txChecked}/${transactions.size} checked`);
+check('every documented transaction was located and succeeded', txSucceeded === transactions.size && transactions.size > 0, `${txSucceeded}/${transactions.size} succeeded`);
 
 // --- values the documentation quotes, re-read from the chain ------------------
 console.log('\nValues quoted in the documentation\n');
@@ -105,9 +105,11 @@ for (const [key, label] of [[3, 'Ethereum mainnet'], [1, 'Sepolia']]) {
 }
 
 // The probe must be the same bytecode on both source chains, or "one address
-// everywhere" is a claim about addresses rather than about code.
-const sepoliaCode = await sepolia.getCode(addresses.probe);
-const mainnetCode = await mainnet.getCode(addresses.probe);
+// everywhere" is a claim about code rather than accidentally reusing one address.
+const sepoliaProbe = probeAddress(11155111);
+const mainnetProbe = probeAddress(1);
+const sepoliaCode = await sepolia.getCode(sepoliaProbe);
+const mainnetCode = await mainnet.getCode(mainnetProbe);
 check(
   'the probe is identical bytecode on Sepolia and Ethereum mainnet',
   sepoliaCode === mainnetCode && sepoliaCode !== '0x',
@@ -117,7 +119,7 @@ check(
 const topic = await registry.PROBED_SIGNATURE();
 check(
   'the event topic in docs matches the deployed registry',
-  docs.includes(topic),
+  docs.toLowerCase().includes(topic.toLowerCase()),
   topic,
 );
 
