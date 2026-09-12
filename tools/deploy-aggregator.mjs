@@ -6,12 +6,12 @@
  * The age limit is in blocks of the source chain, not seconds and not Creditcoin
  * blocks, because that is the only measure that describes how far behind the value is.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { ContractFactory, Contract } from 'ethers';
 import {
 
   env, feedByName, callDataFor, chainKeyFor, computeFeedId,
-  creditcoin, creditcoinWallet, addresses,
+  creditcoin, creditcoinWallet, addresses, deployments,
 } from '../prober/lib/config.mjs';
 
 /** Reads a compiled artifact, and says what to do when the project has not been built. */
@@ -60,6 +60,8 @@ console.log(`\n  deployment tx ${aggregator.deploymentTransaction().hash}`);
 await aggregator.waitForDeployment();
 const address = await aggregator.getAddress();
 console.log(`  aggregator    ${address}`);
+const nextDeployments = { ...deployments, creditcoin: { ...deployments.creditcoin, aggregatorEthUsd: address } };
+writeFileSync(new URL('../deployments.json', import.meta.url), JSON.stringify(nextDeployments, null, 2) + '\n');
 
 // Read it back through the Chainlink interface, exactly as a consumer would.
 const asChainlink = new Contract(

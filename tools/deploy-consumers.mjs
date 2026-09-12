@@ -12,7 +12,7 @@ import { ContractFactory, Contract } from 'ethers';
 import {
 
   feedByName, callDataFor, chainKeyFor, computeFeedId,
-  creditcoin, creditcoinWallet, addresses,
+  creditcoin, creditcoinWallet, addresses, deployments,
 } from '../prober/lib/config.mjs';
 
 /** Reads a compiled artifact, and says what to do when the project has not been built. */
@@ -108,3 +108,17 @@ if (!broadcast) {
 
 writeFileSync(new URL('../docs/evidence/deployments.json', import.meta.url), JSON.stringify(deployed, null, 2) + '\n');
 console.log(`\n  written to docs/evidence/deployments.json\n`);
+const nextDeployments = {
+  ...deployments,
+  creditcoin: {
+    ...deployments.creditcoin,
+    reserveMonitor: deployed.ReserveMonitor,
+    market: deployed.LensMarket,
+    breaker: deployed.CircuitBreaker,
+    escrow: deployed.FeedEscrow,
+    votePort: deployed.VotePort,
+    snapshotProver: deployed.SnapshotProver,
+  },
+};
+writeFileSync(new URL('../deployments.json', import.meta.url), JSON.stringify(nextDeployments, null, 2) + '\n');
+console.log('  dependent addresses written to deployments.json\n');

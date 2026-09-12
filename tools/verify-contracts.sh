@@ -9,8 +9,10 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 export PATH="$HOME/.foundry/bin:$PATH"
 
-PROBE_MAINNET=${LENS_PROBE_1:-$LENS_PROBE}
-PROBE_SEPOLIA=${LENS_PROBE_11155111:-$LENS_PROBE}
+PROBE_MAINNET=${LENS_PROBE_1:-$(node -p "JSON.parse(require('fs').readFileSync('deployments.json')).sources['1']?.probe || ''")}
+PROBE_MAINNET=${PROBE_MAINNET:-$LENS_PROBE}
+PROBE_SEPOLIA=${LENS_PROBE_11155111:-$(node -p "JSON.parse(require('fs').readFileSync('deployments.json')).sources['11155111']?.probe || ''")}
+PROBE_SEPOLIA=${PROBE_SEPOLIA:-$LENS_PROBE}
 
 BS=https://creditcoin-testnet.blockscout.com
 V=(--verifier blockscout --verifier-url "$BS/api/" --compiler-version 0.8.30)

@@ -18,7 +18,7 @@
  * keys are resolved from ChainInfo on that same node first, so the arguments are
  * derived from the environment being deployed to rather than written down here.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { JsonRpcProvider, Wallet, ContractFactory, Contract, toUtf8String } from 'ethers';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
 
@@ -102,3 +102,6 @@ for (const key of await deployed.chainKeys()) {
   console.log(`    key ${key} -> chain id ${s.chainId}, probe ${s.probe}`);
 }
 console.log('');
+const nextDeployments = { ...deployments, creditcoin: { ...deployments.creditcoin, registry: address } };
+writeFileSync(new URL('../deployments.json', import.meta.url), JSON.stringify(nextDeployments, null, 2) + '\n');
+console.log('  registry address written to deployments.json\n');
