@@ -39,6 +39,8 @@ const persist = () => {
 for (const chainId of chainIds) {
   const provider = sourceProvider(chainId);
   const wallet = proberWallet(chainId);
+  const network = await provider.getNetwork();
+  if (network.chainId !== BigInt(chainId)) throw new Error('RPC chain id ' + network.chainId + ' does not match requested source ' + chainId);
   const balance = await provider.getBalance(wallet.address);
   const fee = await provider.getFeeData();
   const gwei = Number(fee.gasPrice ?? 0n) / 1e9;

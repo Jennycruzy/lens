@@ -56,6 +56,9 @@ const broadcast = process.argv.includes('--broadcast');
 const artifact = readArtifact(new URL('../out/LensRegistry.sol/LensRegistry.json', import.meta.url));
 
 const provider = new JsonRpcProvider(env.CC3_TESTNET_RPC, undefined, { staticNetwork: true });
+const expectedCreditcoinChainId = BigInt(env.CC3_CHAIN_ID ?? 102031);
+const actualCreditcoinChainId = (await provider.getNetwork()).chainId;
+if (actualCreditcoinChainId !== expectedCreditcoinChainId) throw new Error('RPC chain id ' + actualCreditcoinChainId + ' does not match CC3 testnet ' + expectedCreditcoinChainId);
 const wallet = new Wallet(env.CC3_PRIVATE_KEY, provider);
 
 const chainInfo = new Contract(CHAIN_INFO, chainInfoAbi, provider);
