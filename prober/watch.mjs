@@ -35,14 +35,16 @@ async function tick() {
       continue;
     }
     const o = await registry.observationOf(id);
-    const age = frontiers[chainKey] > Number(o.probeHeight) ? frontiers[chainKey] - Number(o.probeHeight) : 0;
+    const regressed = Number(o.probeHeight) > frontiers[chainKey];
+    const age = regressed ? Infinity : frontiers[chainKey] - Number(o.probeHeight);
 
     // A value that changed is worth seeing, not just an age that grew.
     const changed = previous[id] !== undefined && previous[id] !== o.returnData;
     previous[id] = o.returnData;
 
-    const mark = age > warnAt ? 'AGEING' : '      ';
-    lines.push(`  ${feed.name.padEnd(32)} ${String(age).padStart(5)}  ${mark}${changed ? '  value changed' : ''}`);
+    const mark = regressed ? 'REORG ' : age > warnAt ? 'AGEING' : '      ';
+    const shownAge = regressed ? 'REORG' : String(age).padStart(5);
+    lines.push('  ' + feed.name.padEnd(32) + ' ' + shownAge.padStart(5) + '  ' + mark + (changed ? '  value changed' : ''));
   }
   console.log(`\n[${stamp()}] age in source blocks` +
     Object.entries(frontiers).map(([k, v]) => `   key ${k} frontier ${v}`).join(''));

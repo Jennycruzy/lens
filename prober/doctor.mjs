@@ -10,7 +10,7 @@
 import { Contract, formatEther } from 'ethers';
 import {
   env, addresses, creditcoin, sourceProvider, sources, registryContract,
-  supportedChains, chainKeyFor, feeds, callDataFor, computeFeedId,
+  supportedChains, chainKeyFor, feeds, callDataFor, computeFeedId, proofBuilderHosts,
 } from './lib/config.mjs';
 
 let failures = 0;
@@ -88,16 +88,27 @@ for (const c of chains) {
 }
 
 console.log('\nProof builders\n');
-for (const host of [env.PROOF_BUILDER_URL, env.PROOF_BUILDER_FALLBACK_URL].filter(Boolean)) {
-  try {
-    const res = await fetch(`${host}/api/v1/attested-height/${chains[0]?.chainKey ?? 1}`, {
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) { warn(`${host} answered HTTP ${res.status}`); continue; }
-    const { attestedHeight } = await res.json();
-    ok(`${host}`, `ingested to ${attestedHeight}`);
-  } catch (e) {
-    warn(`${host} unreachable`, e.message);
+const hosts = proofBuilderHosts();
+if (hosts.length === 0) warn('no proof builder configured', 'set PROOF_BUILDER_URL or a fallback host');
+for (const host of hosts) {
+  for (const chain of chains) {
+    try {
+      const res = await fetch(host + '/api/v1/attested-height/' + chain.chainKey, { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) {
+        const kind = res.status === 404 ? 'not-found' : res.status === 422 ? 'unprocessable' : 'http-' + res.status;
+        warn(host + ' key ' + chain.chainKey, kind + ' (HTTP ' + res.status + ')');
+        continue;
+      }
+      const body = await res.json();
+      const height = Number(body.attestedHeight ?? body.data?.attestedHeight ?? body.height);
+      if (!Number.isFinite(height)) {
+        warn(host + ' key ' + chain.chainKey, 'malformed attested-height response');
+        continue;
+      }
+      ok(host + ' key ' + chain.chainKey, 'ingested to ' + height + ' (' + chain.chainName + ')');
+    } catch (e) {
+      warn(host + ' key ' + chain.chainKey + ' unreachable', e.message);
+    }
   }
 }
 
@@ -110,8 +121,10 @@ for (const feed of feeds) {
     if (!(await registry.hasObservation(id))) { warn(`${feed.name}: never proven`, id); continue; }
     const o = await registry.observationOf(id);
     const frontier = Number(await registry.frontierOf(chainKey));
-    const age = frontier > Number(o.probeHeight) ? frontier - Number(o.probeHeight) : 0;
+    const regressed = Number(o.probeHeight) > frontier;
+    const age = regressed ? Infinity : frontier - Number(o.probeHeight);
     if (!o.callSucceeded) bad(`${feed.name}: the source read failed`, `at block ${o.probeHeight}`);
+    else if (regressed) bad(`${feed.name}: attestation frontier regressed`, `frontier ${frontier} is below observation ${o.probeHeight}`);
     else if (age > 600) warn(`${feed.name}: ageing`, `${age} source blocks behind`);
     else ok(`${feed.name}`, `${age} blocks old, block ${o.probeHeight}`);
   } catch (e) {

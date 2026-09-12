@@ -23,6 +23,7 @@ const once = process.argv.includes('--once');
 const intervalMs = Number(arg('--interval', 900)) * 1000;
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
+let cycleRunning = false;
 const log = (...a) => console.log(`[${stamp()}]`, ...a);
 
 function run(script, args) {
@@ -36,6 +37,12 @@ function run(script, args) {
 }
 
 async function cycle() {
+  if (cycleRunning) {
+    log('cycle skipped: previous cycle still running');
+    return;
+  }
+  cycleRunning = true;
+  try {
   const byChain = feeds.reduce((m, f) => ((m[f.chainId] ??= []).push(f.name), m), {});
 
   for (const [chainId, names] of Object.entries(byChain)) {
@@ -61,18 +68,25 @@ async function cycle() {
     log(`  probed in ${hash}`);
 
     // The wait is the attestation frontier catching up, and it is not optional.
-    const prove = await run('prober/prove.mjs', [hash, chainId]);
-    const matched = (prove.out.match(/byte-equal/g) ?? []).length;
-    const diverged = (prove.out.match(/MISMATCH/g) ?? []).length;
+    // probe.mjs emits one source transaction, even when it carries many feeds; a single
+    // source transaction is therefore proved through submitProof, which records all its logs.
+    const proofScript = 'prober/prove.mjs';
+    const proofArgs = [hash, chainId];
+    const prove = await run(proofScript, proofArgs);
+    const matched = (prove.out.match(/byte-equal/gi) ?? []).length;
+    const diverged = (prove.out.match(/MISMATCH/gi) ?? []).length;
 
-    if (prove.out.includes('already recorded by someone else')) {
+    if (prove.out.includes('already recorded by someone else') || prove.out.includes('already recorded by another prober')) {
       log('  another prober got there first; the feed is fresh either way');
     } else if (prove.code === 0 && diverged === 0) {
-      log(`  proved ${matched} feed(s), all byte-equal to their source`);
+      log('  proof completed through submitProof (' + matched + ' direct comparisons)');
     } else {
       log(`  proof cycle did not complete cleanly (${diverged} divergence(s))`);
       log(prove.out.trim().split('\n').slice(-4).join('\n'));
     }
+    }
+  } finally {
+    cycleRunning = false;
   }
 }
 

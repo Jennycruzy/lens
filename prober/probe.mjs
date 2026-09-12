@@ -41,19 +41,35 @@ console.log(`prober ${wallet.address}\n`);
 // Read each target directly, at a pinned height, before probing. This is the
 // independent answer every later step is measured against.
 const head = await provider.getBlockNumber();
+let readHeight = head;
+let finalizedHeight = null;
+try {
+  const finalized = await provider.getBlock('finalized');
+  if (finalized?.number !== undefined) finalizedHeight = finalized.number;
+} catch {
+  /* use the configured depth fallback below */
+}
+if (finalizedHeight !== null) {
+  readHeight = finalizedHeight;
+  console.log(`source finality: finalized block ${readHeight} (head ${head})`);
+} else {
+  const depth = Number(env[`SOURCE_FINALITY_BLOCKS_${chainId}`] ?? (chainId === 1 ? 64 : 12));
+  readHeight = Math.max(0, head - depth);
+  console.log(`source finality: no finalized tag; pinned ${depth} blocks behind head at ${readHeight}`);
+}
 const targets = [];
 const datas = [];
 const expected = [];
 
 for (const feed of selected) {
   const data = callDataFor(feed);
-  const raw = await provider.call({ to: feed.target, data, blockTag: head });
+  const raw = await provider.call({ to: feed.target, data, blockTag: readHeight });
   const value = decodeFor(feed, raw);
   targets.push(feed.target);
   datas.push(data);
   expected.push({ feed, data, raw, value, callHash: keccak256(data) });
   console.log(`  ${feed.name}`);
-  console.log(`    direct read at block ${head}: ${feed.describe(value)}`);
+  console.log(`    direct read at block ${readHeight}: ${feed.describe(value)}`);
   console.log(`    feed id ${computeFeedId(chainKey, feed.target, data)}`);
 }
 
@@ -97,21 +113,13 @@ if (gweiNow > ceilingGwei) {
  * exists: the proof would fail, or worse, describe a state nobody agrees with. Waiting
  * for finality costs a minute against feeds measured in hours.
  */
-try {
-  const finalized = await provider.getBlock('finalized');
-  if (finalized) {
-    const behind = head - finalized.number;
-    console.log(`  finalized at ${finalized.number}, ${behind} blocks behind the head`);
-  }
-} catch {
-  console.log('  this chain does not expose a finalized tag; reorg depth is unchecked');
-}
+console.log(`  direct reads were pinned before probing at source block ${readHeight}`);
 
 const gas = await probe[call.fn].estimateGas(...call.args);
 const fee = await provider.getFeeData();
 console.log(`\n  ${call.fn}: ${gas} gas at ${Number(fee.gasPrice ?? 0n) / 1e9} gwei`);
 
-const tx = await probe[call.fn](...call.args, { gasLimit: (gas * 130n) / 100n });
+const tx = await probe[call.fn](...call.args, { gasLimit: gas });
 console.log(`  sent ${tx.hash}`);
 const receipt = await tx.wait();
 

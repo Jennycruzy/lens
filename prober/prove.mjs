@@ -12,6 +12,7 @@ import { Contract } from 'ethers';
 import {
   env, chainKeyFor, sourceProvider, creditcoin, creditcoinWallet, registryContract,
   computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO, addresses,
+  builderAttestedHeight, proofBuilderHosts, localProofBuilder, probeContract,
 } from './lib/config.mjs';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
 
@@ -51,15 +52,12 @@ async function waitUntilProvable() {
     const latest = await chainInfo.get_latest_attestation_height_and_hash(chainKey);
     const onChain = latest.exists ? Number(latest.height) : 0;
 
-    let builder = 0;
-    try {
-      const res = await fetch(`${env.PROOF_BUILDER_URL}/api/v1/attested-height/${chainKey}`, {
-        signal: AbortSignal.timeout(12000),
-      });
-      if (res.ok) builder = Number((await res.json()).attestedHeight ?? 0);
-    } catch {
-      /* treated as "not yet", never as "absent" */
-    }
+    const builderState = await builderAttestedHeight(chainKey);
+    const builder = builderState.height;
+    const unavailable = builderState.attempts
+      .filter((attempt) => attempt.status === 'unreachable' || attempt.kind === 'http' || attempt.kind === 'not-found' || attempt.kind === 'unprocessable')
+      .map((attempt) => `${attempt.host}=${attempt.status === 'unreachable' ? 'unreachable' : attempt.kind ?? attempt.status}`);
+    if (unavailable.length) console.log(`  builders: ${unavailable.join(', ')}`);
 
     if (onChain >= height && builder >= height) {
       console.log(`  attested: precompile at ${onChain}, builder at ${builder}`);
@@ -81,7 +79,7 @@ await waitUntilProvable();
  * as "that transaction does not exist" and an update is silently dropped.
  */
 async function getProof() {
-  const hosts = [env.PROOF_BUILDER_URL, env.PROOF_BUILDER_FALLBACK_URL].filter(Boolean);
+  const hosts = proofBuilderHosts();
   const failures = [];
   for (const host of hosts) {
     const url = `${host}/api/v1/proof-by-tx/${chainKey}/${txHash}`;
@@ -91,11 +89,24 @@ async function getProof() {
         console.log(`  proof from ${host}`);
         return await res.json();
       }
-      failures.push(`${host} -> HTTP ${res.status} ${(await res.text()).slice(0, 120)}`);
+      const detail = (await res.text()).slice(0, 120);
+      const kind = res.status === 404 ? 'not-found' : res.status === 422 ? 'unprocessable' : 'http';
+      failures.push(`${host} -> ${kind} (HTTP ${res.status}) ${detail}`);
     } catch (e) {
       failures.push(`${host} -> unreachable: ${e.message}`);
     }
   }
+  try {
+    const local = await localProofBuilder(chainId, chainKey).getProof(txHash);
+    if (local.success) {
+      console.log('  proof from local SDK raw builder');
+      return local.data;
+    }
+    failures.push('local-sdk -> ' + (local.error ?? 'unknown error'));
+  } catch (e) {
+    failures.push('local-sdk -> unreachable: ' + e.message);
+  }
+
   throw new Error('no builder produced a proof:\n    ' + failures.join('\n    '));
 }
 
@@ -105,6 +116,10 @@ const { txBytes, merkleProof, continuityProof } = body;
 if (!txBytes || !merkleProof || !continuityProof) {
   throw new Error('builder response missing proof fields: ' + JSON.stringify(Object.keys(body)));
 }
+const proofHeight = Number(body.headerNumber ?? height);
+if (!Number.isSafeInteger(proofHeight) || proofHeight !== height) {
+  throw new Error('builder proof height ' + body.headerNumber + ' does not match receipt block ' + height);
+}
 
 console.log(`  transaction bytes ${(txBytes.length - 2) / 2}, merkle siblings ${merkleProof.siblings.length}, continuity roots ${continuityProof.roots.length}`);
 
@@ -112,7 +127,7 @@ const wallet = creditcoinWallet();
 const registry = registryContract(wallet);
 const args = [
   chainKey,
-  body.headerNumber ?? height,
+  proofHeight,
   txBytes,
   { root: merkleProof.root, siblings: merkleProof.siblings.map((s) => ({ hash: s.hash, isLeft: s.isLeft })) },
   { lowerEndpointDigest: continuityProof.lowerEndpointDigest, roots: continuityProof.roots },
@@ -195,9 +210,20 @@ function describeRevert(e) {
   return `unrecognised revert, selector ${data.slice(0, 10)}, data ${data}`;
 }
 
+let estimatedGas;
+try {
+  estimatedGas = escrow
+    ? await escrow.submitAndClaim.estimateGas(...args, claimFeedId)
+    : await registry.submitProof.estimateGas(...args);
+} catch (e) {
+  console.error(`\n  gas estimation refused; nothing was sent: ${e.shortMessage ?? e.message}`);
+  process.exit(1);
+}
+console.log(`  measured submission gas ${estimatedGas}`);
+
 const tx = escrow
-  ? await escrow.submitAndClaim(...args, claimFeedId, { gasLimit: 4_000_000 })
-  : await registry.submitProof(...args, { gasLimit: 3_000_000 });
+  ? await escrow.submitAndClaim(...args, claimFeedId, { gasLimit: estimatedGas })
+  : await registry.submitProof(...args, { gasLimit: estimatedGas });
 console.log(`  sent ${tx.hash}`);
 const submitted = await tx.wait();
 console.log(`  recorded in Creditcoin block ${submitted.blockNumber}, ${submitted.gasUsed} gas\n`);
@@ -209,6 +235,19 @@ console.log(`  recorded in Creditcoin block ${submitted.blockNumber}, ${submitte
 // less is a number of unknown provenance.
 let mismatch = false;
 
+const sourceProbe = probeContract(chainId);
+const expectedProbeLogs = receipt.logs
+  .filter((log) => log.address.toLowerCase() === sourceProbe.target.toLowerCase())
+  .map((log) => {
+    try { return sourceProbe.interface.parseLog(log); } catch { return null; }
+  })
+  .filter((log) => log?.name === 'Probed');
+const acceptedFeedIds = new Set();
+if (expectedProbeLogs.length === 0) {
+  console.error('  the source receipt contains no Probed event');
+  process.exit(1);
+}
+
 for (const log of submitted.logs) {
   let parsed;
   try {
@@ -219,6 +258,12 @@ for (const log of submitted.logs) {
   if (parsed?.name !== 'ObservationRecorded') continue;
 
   const feedId = parsed.args.feedId;
+  if (acceptedFeedIds.has(feedId)) {
+    console.error('    duplicate ObservationRecorded event for ' + feedId);
+    mismatch = true;
+    continue;
+  }
+  acceptedFeedIds.add(feedId);
   const target = parsed.args.target;
   const probeHeight = Number(parsed.args.probeHeight);
 
@@ -239,7 +284,19 @@ for (const log of submitted.logs) {
     continue;
   }
 
-  const direct = await provider.call({ to: target, data: callDataFor(feed), blockTag: probeHeight });
+  if (!parsed.args.callSucceeded || observation.truncated) {
+    console.log('    proven result is unavailable (source call failed or returndata was truncated)');
+    continue;
+  }
+
+  let direct;
+  try {
+    direct = await provider.call({ to: target, data: callDataFor(feed), blockTag: probeHeight });
+  } catch (e) {
+    console.error('    source state could not be read at the proven height: ' + (e.shortMessage ?? e.message));
+    mismatch = true;
+    continue;
+  }
   console.log(`    on the source : ${direct}`);
 
   if (observation.returnData === direct) {
@@ -250,5 +307,9 @@ for (const log of submitted.logs) {
   }
 }
 
+if (acceptedFeedIds.size !== expectedProbeLogs.length) {
+  console.error('  accepted ' + acceptedFeedIds.size + ' observation(s), expected ' + expectedProbeLogs.length);
+  mismatch = true;
+}
 console.log('');
 process.exit(mismatch ? 1 : 0);

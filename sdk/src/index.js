@@ -45,6 +45,7 @@ export const Refusal = {
   CallReverted: 'call-reverted', // proven, and proven to have failed at the source
   Truncated: 'truncated', // the answer is a prefix and must not be decoded
   Stale: 'stale', // outside the age you allowed
+  FrontierRegression: 'frontier-regression', // the attestation frontier rewound
 };
 
 export class Lens {
@@ -143,8 +144,16 @@ export class Lens {
     }
 
     const frontier = await this.frontier(chainId);
-    // Clamped: a reorg can rewind the frontier below a recorded height.
-    const age = frontier > observation.probeHeight ? frontier - observation.probeHeight : 0;
+    if (observation.probeHeight > frontier) {
+      return {
+        ok: false,
+        refusal: Refusal.FrontierRegression,
+        age: Infinity,
+        feedId: id,
+        observation,
+      };
+    }
+    const age = frontier - observation.probeHeight;
     if (maxAgeBlocks !== undefined && age > maxAgeBlocks) {
       return { ok: false, refusal: Refusal.Stale, age, feedId: id, observation };
     }

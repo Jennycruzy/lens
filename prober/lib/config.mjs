@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { JsonRpcProvider, Wallet, Contract, Interface, AbiCoder, keccak256, toUtf8String } from 'ethers';
 import chainInfoAbi from '@gluwa/usc-sdk/dist/chain-info/chain_info.json' with { type: 'json' };
+import { proofProvider as uscProofProvider, chainInfo as uscChainInfo } from '@gluwa/usc-sdk';
 
 const root = new URL('../../', import.meta.url);
 
@@ -60,7 +61,7 @@ export const deployments = JSON.parse(readFileSync(new URL('deployments.json', r
 
 export const addresses = {
   registry: env.LENS_REGISTRY || deployments.creditcoin.registry,
-  probe: env.LENS_PROBE || deployments.sources['11155111'].probe,
+  probe: env.LENS_PROBE || deployments.sources['11155111']?.probe,
   aggregator: env.LENS_AGGREGATOR_ETHUSD || deployments.creditcoin.aggregatorEthUsd,
   reserveMonitor: env.LENS_RESERVE_MONITOR || deployments.creditcoin.reserveMonitor,
   market: env.LENS_MARKET || deployments.creditcoin.market,
@@ -92,14 +93,76 @@ export function creditcoinWallet() {
   return new Wallet(env.CC3_PRIVATE_KEY, creditcoin);
 }
 
+export function probeAddress(chainId) {
+  const address = env[`LENS_PROBE_${chainId}`] || deployments.sources[String(chainId)]?.probe || env.LENS_PROBE;
+  if (!address) throw new Error(`LENS_PROBE_${chainId} missing from .env/deployments.json`);
+  return address;
+}
+
+export function proofBuilderHosts() {
+  return [...new Set([
+    env.PROOF_BUILDER_URL,
+    env.PROOF_BUILDER_FALLBACK_URL,
+    env.PROOF_BUILDER_LOCAL_URL,
+  ].filter(Boolean))];
+}
+
+const localBuilders = new Map();
+
+export function localProofBuilder(chainId, chainKey) {
+  const cacheKey = chainId + ':' + chainKey;
+  if (!localBuilders.has(cacheKey)) {
+    const blockProvider = new uscProofProvider.raw.blockProvider.SimpleBlockProvider(sourceProvider(chainId));
+    const chainInfoProvider = new uscChainInfo.PrecompileChainInfoProvider(creditcoin, CHAIN_INFO);
+    localBuilders.set(cacheKey, new uscProofProvider.raw.RawProofBuilder(
+      chainKey, blockProvider, chainInfoProvider, uscProofProvider.raw.EncodingVersion.V1,
+    ));
+  }
+  return localBuilders.get(cacheKey);
+}
+
+export async function builderAttestedHeight(chainKey) {
+  let height = 0;
+  const attempts = [];
+  try {
+    const latest = await new Contract(CHAIN_INFO, chainInfoAbi, creditcoin).get_latest_attestation_height_and_hash(chainKey);
+    const observed = latest.exists ? Number(latest.height) : 0;
+    if (Number.isFinite(observed)) height = Math.max(height, observed);
+    attempts.push({ host: 'local-sdk', status: 'on-chain', height: observed });
+  } catch (e) {
+    attempts.push({ host: 'local-sdk', status: 'unreachable', error: e.message });
+  }
+  for (const host of proofBuilderHosts()) {
+    try {
+      const response = await fetch(`${host}/api/v1/attested-height/${chainKey}`, {
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) {
+        attempts.push({
+          host,
+          status: response.status,
+          kind: response.status === 404 ? 'not-found' : response.status === 422 ? 'unprocessable' : 'http',
+        });
+        continue;
+      }
+      const body = await response.json();
+      const observed = Number(body.attestedHeight ?? body.data?.attestedHeight ?? body.height ?? 0);
+      if (Number.isFinite(observed)) height = Math.max(height, observed);
+      attempts.push({ host, status: response.status, height: observed });
+    } catch (e) {
+      attempts.push({ host, status: 'unreachable', error: e.message });
+    }
+  }
+  return { height, attempts };
+}
+
 export function registryContract(runner = creditcoin) {
   if (!addresses.registry) throw new Error('LENS_REGISTRY missing from .env');
   return new Contract(addresses.registry, artifacts.registry.abi, runner);
 }
 
 export function probeContract(chainId, runner) {
-  if (!addresses.probe) throw new Error('LENS_PROBE missing from .env');
-  return new Contract(addresses.probe, artifacts.probe.abi, runner ?? sourceProvider(chainId));
+  return new Contract(probeAddress(chainId), artifacts.probe.abi, runner ?? sourceProvider(chainId));
 }
 
 let chainCache = null;

@@ -35,6 +35,12 @@ for (const feed of selected) {
   }
 
   const o = await registry.observationOf(id);
+  const frontier = Number(await registry.frontierOf(chainKey));
+  if (Number(o.probeHeight) > frontier) {
+    console.log('  status   refused — frontier ' + frontier + ' is below observation ' + o.probeHeight);
+    unchecked++;
+    continue;
+  }
   if (!o.callSucceeded) {
     console.log(`  status   recorded as a failed source read at block ${o.probeHeight}`);
     continue;
