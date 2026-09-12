@@ -72,10 +72,7 @@ and proven to have failed at the source), **truncated** (the answer is a prefix)
 **stale** (outside the age you allowed).
 
 Age is `frontier - probeHeight`: how far behind the attested head of the source chain the
-value sits. Never wall-clock, never a Creditcoin height. It is clamped at zero rather than
-allowed to underflow, because a source-chain reorg can rewind the frontier below a
-recorded height and an unclamped subtraction wraps to near 2²⁵⁶ — which reads as
-impossibly stale and locks every consumer out of a feed that is fine.
+value sits. Never wall-clock, never a Creditcoin height. When a source-chain reorg rewinds the frontier below a recorded height, the observation may no longer be canonical. Readers return a maximum-value sentinel and refuse it; they never treat a regressed frontier as age zero.
 
 ## The two clocks
 

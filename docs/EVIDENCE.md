@@ -249,16 +249,15 @@ Creditcoin itself rather than against a stub:
 A valid proof stays valid forever, which is exactly why it has to be spent once.
 
 
-## Not yet done
+## Audit status (2026-09-12)
 
-Listed so this file is a record rather than an advertisement.
+The audit checkpoint is intentionally paused. The deployed contracts and evidence below remain historical until fresh deployment parity is established.
 
-| Missing | Consequence |
+| Open gate | Current status |
 |---|---|
-| `HistoryProbe`, `LensComposer`, `CircuitBreaker`, `FeedEscrow` | no historical reads, no medians or ratios, no automatic breaker, no liveness incentive |
-| All four consumers | the platform claim rests on the shim and the registry alone so far |
-| Invariant, symbolic and differential tests | the eight invariants are argued in comments, not enforced by a runner |
-| `LensConsumer` has no test of its own | it compiles and nothing executes it |
-| Contract verification on Blockscout and Sourcify | a reader can call the contracts but cannot read their source on an explorer |
-| Mainnet probe | the address is pinned and the bytecode is fixed, but nothing is deployed there |
-| SDK, indexer, templates, web app | nothing to point a stranger at yet |
+| Deployment parity | Live LensRegistry is missing `submitProofForFeed`; fresh deployment is required because the registry is immutable. |
+| Live operation | All ten current feeds were stale; no persistent prober/indexer service was found. |
+| Differential | 7 matches, 0 divergences, 3 unreachable mainnet historical reads; archive RPC is still required. |
+| Coverage | 93.16% lines across `contracts/src`; release target is 95%+. |
+| Verification | Blockscout/Sourcify full-match evidence is still open for the current build. |
+| Remaining correctness work | SnapshotProver age check, breaker reorg recovery, and prober failover/batching/finality behavior. |

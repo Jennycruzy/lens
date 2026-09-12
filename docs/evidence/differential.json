@@ -1,9 +1,10 @@
 {
-  "generatedAt": "2026-09-10T21:08:08.082Z",
+  "generatedAt": "2026-09-11T21:32:20.281Z",
   "registry": "0x81b6DcbcE28EC0634DC905cfDc5eA84005915852",
-  "creditcoinHeight": 5465579,
+  "creditcoinHeight": 5471425,
   "compared": 7,
   "diverged": 0,
+  "unreachable": 3,
   "rows": [
     {
       "feed": "sepolia.weth.totalSupply",

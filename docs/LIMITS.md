@@ -59,7 +59,7 @@ it is not deployed. The capability is real and the tests exercise it.
 
 ## Coverage is not uniform
 
-**90.58% of lines**, 86.5% of statements, 60% of branches across `contracts/src`.
+**93.16% of lines**, 88.74% of statements, 62.64% of branches across `contracts/src`; the 95%+ line target remains open.
 
 The two probes read around 52%, which understates them: their read paths are inline
 assembly, which the coverage instrument cannot see. They are covered by unit tests, fork

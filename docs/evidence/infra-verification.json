@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-10T12:40:44.296Z",
-  "creditcoinHeight": 5463550,
+  "generatedAt": "2026-09-11T21:49:15.746Z",
+  "creditcoinHeight": 5471492,
   "summary": "9/9 checks passed",
   "chains": [
     {
@@ -20,28 +20,28 @@
     "1": {
       "chainId": 11155111,
       "chainName": "Sepolia ethereum",
-      "latestAttestation": 11674960,
-      "latestAttestationHash": "0xab13e8dba7871f300a35b880bae3673d72c914d570b403995e6edf4dd680183f",
+      "latestAttestation": 11684610,
+      "latestAttestationHash": "0x7753f17d0ebc5924017a8d9d6df401ca7e408d7598441d52d897a3a23006f320",
       "attestationExists": true,
-      "latestCheckpoint": 11674800,
+      "latestCheckpoint": 11684500,
       "checkpointExists": true,
       "attestationGenesisHeight": 0,
-      "sourceHead": 11675001,
-      "lagBlocks": 41,
-      "lagSeconds": 492
+      "sourceHead": 11684643,
+      "lagBlocks": 33,
+      "lagSeconds": 396
     },
     "3": {
       "chainId": 1,
       "chainName": "Ethereum",
-      "latestAttestation": 25947010,
-      "latestAttestationHash": "0x6183c9d88d8d9d9316a80c097dc22b49b19eea6133be23f78becdd7cd109dd8e",
+      "latestAttestation": 25956920,
+      "latestAttestationHash": "0x23869ac7f11f4c21cf49ff09587e91be2ecf08b49442e6b62b81eb344d622e9e",
       "attestationExists": true,
-      "latestCheckpoint": 25946900,
+      "latestCheckpoint": 25956800,
       "checkpointExists": true,
       "attestationGenesisHeight": 0,
-      "sourceHead": 25947049,
-      "lagBlocks": 39,
-      "lagSeconds": 468
+      "sourceHead": 25956954,
+      "lagBlocks": 34,
+      "lagSeconds": 408
     }
   },
   "results": [
@@ -53,7 +53,7 @@
       "evidence": {
         "rpc": "https://rpc.cc3-testnet.creditcoin.network",
         "chainId": 102031,
-        "height": 5463550
+        "height": 5471491
       }
     },
     {
@@ -121,38 +121,38 @@
       "id": "frontier-3",
       "what": "attestation frontier readable for Ethereum",
       "status": "pass",
-      "detail": "attested to 25947010, source head 25947049, lag 39 blocks (~468s); provable from height 0",
+      "detail": "attested to 25956920, source head 25956954, lag 34 blocks (~408s); provable from height 0",
       "evidence": {
         "chainId": 1,
         "chainName": "Ethereum",
-        "latestAttestation": 25947010,
-        "latestAttestationHash": "0x6183c9d88d8d9d9316a80c097dc22b49b19eea6133be23f78becdd7cd109dd8e",
+        "latestAttestation": 25956920,
+        "latestAttestationHash": "0x23869ac7f11f4c21cf49ff09587e91be2ecf08b49442e6b62b81eb344d622e9e",
         "attestationExists": true,
-        "latestCheckpoint": 25946900,
+        "latestCheckpoint": 25956800,
         "checkpointExists": true,
         "attestationGenesisHeight": 0,
-        "sourceHead": 25947049,
-        "lagBlocks": 39,
-        "lagSeconds": 468
+        "sourceHead": 25956954,
+        "lagBlocks": 34,
+        "lagSeconds": 408
       }
     },
     {
       "id": "frontier-1",
       "what": "attestation frontier readable for Sepolia ethereum",
       "status": "pass",
-      "detail": "attested to 11674960, source head 11675001, lag 41 blocks (~492s); provable from height 0",
+      "detail": "attested to 11684610, source head 11684643, lag 33 blocks (~396s); provable from height 0",
       "evidence": {
         "chainId": 11155111,
         "chainName": "Sepolia ethereum",
-        "latestAttestation": 11674960,
-        "latestAttestationHash": "0xab13e8dba7871f300a35b880bae3673d72c914d570b403995e6edf4dd680183f",
+        "latestAttestation": 11684610,
+        "latestAttestationHash": "0x7753f17d0ebc5924017a8d9d6df401ca7e408d7598441d52d897a3a23006f320",
         "attestationExists": true,
-        "latestCheckpoint": 11674800,
+        "latestCheckpoint": 11684500,
         "checkpointExists": true,
         "attestationGenesisHeight": 0,
-        "sourceHead": 11675001,
-        "lagBlocks": 41,
-        "lagSeconds": 492
+        "sourceHead": 11684643,
+        "lagBlocks": 33,
+        "lagSeconds": 396
       }
     },
     {
