@@ -34,11 +34,11 @@ library LensLib {
         return keccak256(abi.encode(chainKey, target, keccak256(callData)));
     }
 
-    /// @notice Age of a feed in blocks of its source chain, clamped for reorgs.
+    /// @notice Age in source blocks, or max uint when the frontier regressed.
     function ageOf(LensRegistry lens, uint64 chainKey, bytes32 id) internal view returns (uint256) {
         LensRegistry.Observation memory o = lens.observationOf(id);
         uint256 frontier = lens.frontierOf(chainKey);
-        return frontier > o.probeHeight ? frontier - o.probeHeight : 0;
+        return _age(frontier, o.probeHeight);
     }
 
     /// @notice The freshest bytes for `id`, or a revert.
@@ -53,8 +53,8 @@ library LensLib {
         if (o.truncated) revert AnswerTruncated(id);
 
         uint256 frontier = lens.frontierOf(chainKey);
-        uint256 age = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
-        if (age > maxAgeBlocks) revert FeedStale(id, age, maxAgeBlocks);
+        uint256 age = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || age > maxAgeBlocks) revert FeedStale(id, age, maxAgeBlocks);
 
         return o.returnData;
     }
@@ -100,8 +100,13 @@ library LensLib {
         if (!o.callSucceeded || o.truncated) return (false, "", 0);
 
         uint256 frontier = lens.frontierOf(chainKey);
-        age = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
-        if (age > maxAgeBlocks) return (false, "", age);
+        age = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || age > maxAgeBlocks) return (false, "", age);
         return (true, o.returnData, age);
+    }
+
+    function _age(uint256 frontier, uint256 probeHeight) private pure returns (uint256) {
+        if (probeHeight > frontier) return type(uint256).max;
+        return frontier - probeHeight;
     }
 }

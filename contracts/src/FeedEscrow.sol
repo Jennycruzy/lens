@@ -90,7 +90,10 @@ contract FeedEscrow {
     function payableNow(bytes32 feedId, uint64 atHeight) public view returns (uint256) {
         Funding storage f = _funding[feedId];
         if (f.balance == 0 || f.rewardPerUpdate == 0) return 0;
-        if (f.lastRewardedHeight != 0 && atHeight < f.lastRewardedHeight + f.minBlocksBetweenRewards) return 0;
+        if (
+            f.lastRewardedHeight != 0
+                && uint256(atHeight) < uint256(f.lastRewardedHeight) + uint256(f.minBlocksBetweenRewards)
+        ) return 0;
         return f.rewardPerUpdate > f.balance ? f.balance : f.rewardPerUpdate;
     }
 
@@ -108,7 +111,9 @@ contract FeedEscrow {
         INativeQueryVerifier.ContinuityProof calldata continuityProof,
         bytes32 feedId
     ) external returns (uint256 recorded, uint256 paid) {
-        recorded = LENS.submitProof(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof);
+        recorded = LENS.submitProofForFeed(
+            chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof, feedId
+        );
         if (recorded == 0) revert NoObservationRecorded();
 
         paid = payableNow(feedId, blockHeight);

@@ -112,7 +112,7 @@ contract StateProbe {
     ///      to any chain state, and this contract holds none for a reentrant call to
     ///      observe or corrupt. A target that calls back in can only cause more logs to
     ///      be emitted, which it could equally do by calling {probe} itself.
-    function _probe(address target, bytes calldata data) private {
+    function _probe(address target, bytes calldata data) internal {
         (bool success, bool truncated, bytes memory ret) = _boundedStaticCall(target, data);
         emit Probed(target, keccak256(data), msg.sender, success, truncated, block.number, block.timestamp, ret);
     }
@@ -158,7 +158,7 @@ contract StateProbe {
 
             // Lay the result out as a `bytes` immediately after the input scratch
             // space and move the free memory pointer past it.
-            ret := add(input, data.length)
+            ret := add(input, and(add(data.length, 0x1f), not(0x1f)))
             mstore(ret, copied)
             returndatacopy(add(ret, 0x20), 0, copied)
             mstore(0x40, add(add(ret, 0x20), and(add(copied, 0x1f), not(0x1f))))

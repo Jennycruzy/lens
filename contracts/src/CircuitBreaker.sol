@@ -62,6 +62,9 @@ contract CircuitBreaker {
         /// @dev The value that caused a deviation trip. A second observation near it
         ///      confirms the move was real, which is what allows the feed to resume.
         uint256 pendingValue;
+        /// @dev Observation height that established the current trip condition.
+        ///      Recovery requires a strictly newer observation.
+        uint256 tripHeight;
     }
 
     State private _state;
@@ -126,11 +129,15 @@ contract CircuitBreaker {
         (Reason live, bool haveValue, uint256 v, uint256 h) = _evaluate();
 
         if (live != Reason.None) {
-            if (!_state.tripped) {
+            bool firstTrip = !_state.tripped;
+            bool changedReason = _state.reason != live;
+            bool newerDeviationCandidate = live == Reason.Deviation && h > _state.tripHeight;
+            if (firstTrip || changedReason || newerDeviationCandidate) {
                 _state.tripped = true;
                 _state.reason = live;
-                _state.trippedAt = uint64(block.timestamp);
-                if (live == Reason.Deviation) _state.pendingValue = v;
+                if (firstTrip) _state.trippedAt = uint64(block.timestamp);
+                _state.tripHeight = h;
+                _state.pendingValue = live == Reason.Deviation ? v : 0;
                 emit Tripped(live, v, previous, h);
             }
             return (true, live);
@@ -138,12 +145,17 @@ contract CircuitBreaker {
 
         if (!haveValue) return (_state.tripped, _state.reason);
 
+        // A frontier catching up, or a second poke of the same deviating observation,
+        // is not new evidence. Recovery always needs a strictly newer observation.
+        if (_state.tripped && h <= _state.tripHeight) return (true, _state.reason);
+
         // Inside every bound. Record it, and restore if the breaker was tripped.
         if (_state.tripped) {
             _state.tripped = false;
             _state.reason = Reason.None;
             _state.trippedAt = 0;
             _state.pendingValue = 0;
+            _state.tripHeight = 0;
             emit Restored(v, h);
         }
         _state.lastValue = v;
@@ -178,7 +190,8 @@ contract CircuitBreaker {
         if (_state.lastHeight != 0 && h != _state.lastHeight && _state.lastValue != 0) {
             bool nearLast = _within(v, _state.lastValue);
             // A held tripping value gives the move a second chance to be confirmed.
-            bool nearPending = _state.pendingValue != 0 && h != _state.lastHeight && _within(v, _state.pendingValue);
+            bool nearPending = _state.tripped && _state.reason == Reason.Deviation && _state.pendingValue != 0
+                && h > _state.tripHeight && _within(v, _state.pendingValue);
             if (!nearLast && !nearPending) return (Reason.Deviation, true, v, h);
         }
 
@@ -188,6 +201,9 @@ contract CircuitBreaker {
     function _within(uint256 v, uint256 baseline) private view returns (bool) {
         if (baseline == 0) return true;
         uint256 diff = v > baseline ? v - baseline : baseline - v;
+        // Refuse extreme values rather than letting multiplication wrap and falsely
+        // classify a violent move as inside the bound.
+        if (diff > type(uint256).max / BPS) return false;
         return (diff * BPS) / baseline <= MAX_DEVIATION_BPS;
     }
 }

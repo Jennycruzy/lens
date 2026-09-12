@@ -103,8 +103,8 @@ contract LensAggregatorV3 is AggregatorV3Interface {
         if (o.truncated) revert AnswerTruncated(FEED_ID);
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        uint256 age = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
-        if (age > MAX_AGE_BLOCKS) revert FeedStale(FEED_ID, age, MAX_AGE_BLOCKS);
+        uint256 age = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || age > MAX_AGE_BLOCKS) revert FeedStale(FEED_ID, age, MAX_AGE_BLOCKS);
 
         if (o.returnData.length != 32) revert AnswerWrongWidth(FEED_ID, o.returnData.length);
         answer = _toInt256(o.returnData);
@@ -140,7 +140,12 @@ contract LensAggregatorV3 is AggregatorV3Interface {
         if (!LENS.hasObservation(FEED_ID)) return type(uint256).max;
         LensRegistry.Observation memory o = LENS.observationOf(FEED_ID);
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        return frontier > o.probeHeight ? frontier - o.probeHeight : 0;
+        return _age(frontier, o.probeHeight);
+    }
+
+    function _age(uint256 frontier, uint256 probeHeight) private pure returns (uint256) {
+        if (probeHeight > frontier) return type(uint256).max;
+        return frontier - probeHeight;
     }
 
     /// @dev A source height cannot exceed 80 bits for any real chain, but the cast is

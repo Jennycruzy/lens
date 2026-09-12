@@ -69,6 +69,8 @@ contract LensMarket {
     error WithdrawExceedsCollateral(uint256 amount, uint256 collateral);
     error StalePrice(uint256 age, uint256 maxAge);
     error InvalidPrice(int256 answer);
+    error CollateralRatioRequired();
+    error ArithmeticOverflow();
     error TransferFailed();
 
     constructor(
@@ -78,6 +80,8 @@ contract LensMarket {
         uint256 maxPriceAge
     ) {
         if (address(priceFeed) == address(0)) revert FeedRequired();
+        if (collateralRatioBps == 0) revert CollateralRatioRequired();
+        if (liquidationBonusBps > type(uint256).max - BPS) revert ArithmeticOverflow();
         PRICE_FEED = priceFeed;
         PRICE_UNIT = 10 ** priceFeed.decimals();
         COLLATERAL_RATIO_BPS = collateralRatioBps;
@@ -160,8 +164,8 @@ contract LensMarket {
 
         debtRepaid = pos.debt;
         // Value the debt in collateral terms, then add the liquidator's discount.
-        uint256 atPrice = (debtRepaid * PRICE_UNIT) / p;
-        collateralSeized = (atPrice * (BPS + LIQUIDATION_BONUS_BPS)) / BPS;
+        uint256 atPrice = _mul(debtRepaid, PRICE_UNIT) / p;
+        collateralSeized = _mul(atPrice, BPS + LIQUIDATION_BONUS_BPS) / BPS;
         if (collateralSeized > pos.collateral) collateralSeized = pos.collateral;
 
         pos.debt = 0;
@@ -185,10 +189,15 @@ contract LensMarket {
         if (pos.debt == 0) return type(uint256).max;
         // Collateral is 18-decimal; the price is in the feed's own units. Dividing by
         // PRICE_UNIT brings the product back to 18 decimals, matching debt.
-        uint256 collateralValue = (pos.collateral * p) / PRICE_UNIT;
-        uint256 required = (pos.debt * COLLATERAL_RATIO_BPS) / BPS;
+        uint256 collateralValue = _mul(pos.collateral, p) / PRICE_UNIT;
+        uint256 required = _mul(pos.debt, COLLATERAL_RATIO_BPS) / BPS;
         if (required == 0) return type(uint256).max;
-        return (collateralValue * WAD) / required;
+        return _mul(collateralValue, WAD) / required;
+    }
+
+    function _mul(uint256 a, uint256 b) private pure returns (uint256) {
+        if (a != 0 && b > type(uint256).max / a) revert ArithmeticOverflow();
+        return a * b;
     }
 
     receive() external payable {}

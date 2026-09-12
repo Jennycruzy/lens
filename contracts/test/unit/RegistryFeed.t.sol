@@ -141,14 +141,20 @@ contract RegistryFeedTest is Test {
         assertEq(value, 5);
     }
 
-    /// After a reorg the frontier can sit below a recorded height. Age clamps to zero
-    /// rather than underflowing into a number that would lock every reader out.
-    function test_frontierBehindTheObservationClampsAge() public {
+    /// After a reorg the recorded block may no longer be canonical.
+    function test_frontierBehindTheObservationRefuses() public {
         _record(FRONTIER - 10, abi.encode(uint256(9)), true, false);
         chainInfo.setFrontier(KEY, FRONTIER - 100, true);
-        (uint256 value, uint256 age) = feed.read();
-        assertEq(age, 0);
-        assertEq(value, 9);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(RegistryFeed.FeedStale.selector, feedId, type(uint256).max, uint256(MAX_AGE))
+        );
+        feed.read();
+
+        (bool ok, uint256 value, uint256 age) = feed.tryRead();
+        assertFalse(ok);
+        assertEq(value, 0);
+        assertEq(age, type(uint256).max);
     }
 
     function test_registryAddressIsRequired() public {

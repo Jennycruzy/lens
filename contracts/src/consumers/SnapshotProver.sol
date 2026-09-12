@@ -49,6 +49,8 @@ contract SnapshotProver {
 
     uint256 public immutable MAX_AGE_BLOCKS;
     uint256 private constant WAD = 1e18;
+    bytes4 public constant GET_PAST_VOTES = 0x3a46b1a8;
+    bytes4 public constant GET_PRIOR_VOTES = 0x782d6fe1;
 
     event CampaignOpened(uint256 indexed id, address token, uint256 snapshotBlock, uint256 funded);
     event Claimed(uint256 indexed id, address indexed claimant, uint256 holding, uint256 paid);
@@ -65,10 +67,14 @@ contract SnapshotProver {
     error NoProvenHolding(address claimant, bytes32 feedId);
     error ProofFailed();
     error ProofStale(uint256 age, uint256 maxAge);
+    error FrontierRegression(uint256 frontier, uint256 probeHeight);
     error BelowMinimum(uint256 holding, uint256 minimum);
     error PoolExhausted();
     error NotTheOrganiser(address caller, address organiser);
     error TransferFailed();
+    error SelectorRequired();
+    error UnsupportedSelector(bytes4 selector);
+    error RewardCalculationOverflow();
 
     constructor(LensRegistry registry, uint64 chainKey, uint256 maxAgeBlocks) {
         if (address(registry) == address(0)) revert RegistryRequired();
@@ -101,6 +107,8 @@ contract SnapshotProver {
         uint64 openFor
     ) external payable returns (uint256 id) {
         if (token == address(0)) revert TokenRequired();
+        if (selector == bytes4(0)) revert SelectorRequired();
+        if (selector != GET_PAST_VOTES && selector != GET_PRIOR_VOTES) revert UnsupportedSelector(selector);
         if (msg.value == 0) revert NothingFunded();
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
@@ -140,12 +148,9 @@ contract SnapshotProver {
         holding = provenHolding(id, msg.sender);
         if (holding < c.minimumHolding) revert BelowMinimum(holding, c.minimumHolding);
 
-        paid = (holding * c.rewardPerToken) / WAD;
-        if (c.maxPerClaim != 0 && paid > c.maxPerClaim) paid = c.maxPerClaim;
-
         uint256 remaining = c.funded - c.paidOut;
         if (remaining == 0) revert PoolExhausted();
-        if (paid > remaining) paid = remaining;
+        paid = _calculatePayout(holding, c.rewardPerToken, c.maxPerClaim, remaining);
 
         claimed[id][msg.sender] = true;
         c.paidOut += paid;
@@ -164,7 +169,8 @@ contract SnapshotProver {
         if (!o.callSucceeded || o.truncated || o.returnData.length != 32) revert ProofFailed();
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        uint256 age = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
+        if (o.probeHeight > frontier) revert FrontierRegression(frontier, o.probeHeight);
+        uint256 age = frontier - o.probeHeight;
         if (age > MAX_AGE_BLOCKS) revert ProofStale(age, MAX_AGE_BLOCKS);
 
         return abi.decode(o.returnData, (uint256));
@@ -187,15 +193,30 @@ contract SnapshotProver {
         if (!o.callSucceeded || o.truncated || o.returnData.length != 32) {
             return (false, 0, 0, "the source read failed");
         }
+
+        uint256 frontier = LENS.frontierOf(CHAIN_KEY);
+        if (o.probeHeight > frontier) return (false, 0, 0, "attestation frontier regressed");
+        if (frontier - o.probeHeight > MAX_AGE_BLOCKS) return (false, 0, 0, "proof is stale");
+
         holding = abi.decode(o.returnData, (uint256));
         if (holding < c.minimumHolding) return (false, holding, 0, "below the minimum");
 
-        wouldPay = (holding * c.rewardPerToken) / WAD;
-        if (c.maxPerClaim != 0 && wouldPay > c.maxPerClaim) wouldPay = c.maxPerClaim;
         uint256 remaining = c.funded - c.paidOut;
-        if (wouldPay > remaining) wouldPay = remaining;
+        wouldPay = _calculatePayout(holding, c.rewardPerToken, c.maxPerClaim, remaining);
 
         return (true, holding, wouldPay, "");
+    }
+
+    /// @dev Refuse an overflowing reward calculation rather than wrapping and overpaying.
+    function _calculatePayout(uint256 holding, uint256 rewardPerToken, uint256 maxPerClaim, uint256 remaining)
+        private
+        pure
+        returns (uint256 paid)
+    {
+        if (holding != 0 && rewardPerToken > type(uint256).max / holding) revert RewardCalculationOverflow();
+        paid = (holding * rewardPerToken) / WAD;
+        if (maxPerClaim != 0 && paid > maxPerClaim) paid = maxPerClaim;
+        if (paid > remaining) paid = remaining;
     }
 
     /// @notice Return whatever nobody claimed, once the campaign has closed.

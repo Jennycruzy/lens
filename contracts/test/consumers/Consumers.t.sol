@@ -367,6 +367,20 @@ contract VotePortTest is ConsumerRig {
         port.castVote(id, true);
     }
 
+    function test_frontierRegressionRefusesVotingWeight() public {
+        uint256 id = port.propose("raise the fee", snapshot, 3 days);
+        _proveWeight(alice, 10e18, FRONTIER - 10);
+        chainInfo.setFrontier(KEY, FRONTIER - 100, true);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VotePort.FrontierRegression.selector, uint256(FRONTIER - 100), uint256(FRONTIER - 10)
+            )
+        );
+        port.castVote(id, true);
+    }
+
     function test_bothSidesTally() public {
         uint256 id = port.propose("raise the fee", snapshot, 3 days);
         _proveWeight(alice, 300e18, FRONTIER - 10);
@@ -480,6 +494,40 @@ contract SnapshotProverTest is ConsumerRig {
         assertTrue(eligible);
         assertEq(wouldPay, 1000);
         assertEq(reason, "");
+    }
+
+    function test_eligibilityRefusesAStaleProof() public {
+        _proveHolding(alice, 1000e18);
+        chainInfo.setFrontier(KEY, FRONTIER + 6000, true);
+
+        (bool eligible, uint256 holding, uint256 wouldPay, string memory reason) = prover.eligibility(campaign, alice);
+        assertFalse(eligible);
+        assertEq(holding, 0);
+        assertEq(wouldPay, 0);
+        assertEq(reason, "proof is stale");
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(SnapshotProver.ProofStale.selector, uint256(6010), uint256(5000)));
+        prover.claim(campaign);
+    }
+
+    function test_eligibilityRefusesARegressedFrontier() public {
+        _proveHolding(alice, 1000e18);
+        chainInfo.setFrontier(KEY, FRONTIER - 100, true);
+
+        (bool eligible, uint256 holding, uint256 wouldPay, string memory reason) = prover.eligibility(campaign, alice);
+        assertFalse(eligible);
+        assertEq(holding, 0);
+        assertEq(wouldPay, 0);
+        assertEq(reason, "attestation frontier regressed");
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SnapshotProver.FrontierRegression.selector, uint256(FRONTIER - 100), uint256(FRONTIER - 10)
+            )
+        );
+        prover.claim(campaign);
     }
 
     function test_organiserReclaimsTheRemainderAfterClosing() public {

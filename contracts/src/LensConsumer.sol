@@ -116,20 +116,21 @@ abstract contract LensConsumer {
         // number that looks plausible and is wrong, which is the worst outcome available.
         if (o.truncated) return (false, "", 0, RefusalReason.Truncated);
 
-        age = _age(LENS.frontierOf(_chainKeyOf(id, o)), o.probeHeight);
-        if (age > maxAge) return (false, "", age, RefusalReason.Stale);
+        uint64 frontier = LENS.frontierOf(_chainKeyOf(id, o));
+        age = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || age > maxAge) return (false, "", age, RefusalReason.Stale);
 
         return (true, o.returnData, age, RefusalReason.None);
     }
 
     /**
-     * @dev The frontier can sit below a recorded observation for a moment after a
-     *      source-chain reorg rewinds it. Age is clamped at zero rather than
-     *      underflowing, and a reorg is the circuit breaker's business, not an
-     *      arithmetic accident here.
+     * @dev A frontier below the observation means the proven block may have been
+     *      reorged away. It is not age zero. The maximum value is an unambiguous
+     *      refusal sentinel: strict reads revert stale and try-reads return false.
      */
     function _age(uint64 frontier, uint256 probeHeight) private pure returns (uint256) {
-        return frontier > probeHeight ? uint256(frontier) - probeHeight : 0;
+        if (probeHeight > frontier) return type(uint256).max;
+        return uint256(frontier) - probeHeight;
     }
 
     /**

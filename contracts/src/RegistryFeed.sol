@@ -48,8 +48,10 @@ contract RegistryFeed is ILensFeed {
         if (o.returnData.length != 32) revert AnswerWrongWidth(o.returnData.length);
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        ageBlocks = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
-        if (ageBlocks > MAX_AGE_BLOCKS) revert FeedStale(FEED_ID, ageBlocks, MAX_AGE_BLOCKS);
+        ageBlocks = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || ageBlocks > MAX_AGE_BLOCKS) {
+            revert FeedStale(FEED_ID, ageBlocks, MAX_AGE_BLOCKS);
+        }
 
         value = abi.decode(o.returnData, (uint256));
     }
@@ -60,13 +62,18 @@ contract RegistryFeed is ILensFeed {
         if (!o.callSucceeded || o.truncated || o.returnData.length != 32) return (false, 0, type(uint256).max);
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        ageBlocks = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
-        if (ageBlocks > MAX_AGE_BLOCKS) return (false, 0, ageBlocks);
+        ageBlocks = _age(frontier, o.probeHeight);
+        if (o.probeHeight > frontier || ageBlocks > MAX_AGE_BLOCKS) return (false, 0, ageBlocks);
 
         return (true, abi.decode(o.returnData, (uint256)), ageBlocks);
     }
 
     function describe() external view returns (string memory) {
         return _description;
+    }
+
+    function _age(uint256 frontier, uint256 probeHeight) private pure returns (uint256) {
+        if (probeHeight > frontier) return type(uint256).max;
+        return frontier - probeHeight;
     }
 }

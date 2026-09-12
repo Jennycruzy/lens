@@ -116,6 +116,17 @@ contract CircuitBreakerTest is Test {
         breaker.value();
     }
 
+    function test_theSameDeviatingObservationCannotRestoreItself() public {
+        _record(FRONTIER - 20, 2000e8);
+        breaker.poke();
+        _record(FRONTIER - 10, 2200e8);
+        (bool tripped,) = breaker.poke();
+        assertTrue(tripped);
+
+        (tripped,) = breaker.poke();
+        assertTrue(tripped, "a second poke is not an independent confirmation");
+    }
+
     function test_aCrashTripsJustAsAJumpDoes() public {
         _record(FRONTIER - 20, 2000e8);
         breaker.poke();
@@ -141,6 +152,23 @@ contract CircuitBreakerTest is Test {
 
         vm.expectRevert();
         breaker.value();
+    }
+
+    function test_frontierRecoveryAloneDoesNotRestore() public {
+        _record(FRONTIER - 10, 2467e8);
+        breaker.poke();
+
+        chainInfo.setFrontier(KEY, FRONTIER - 50, true);
+        (bool tripped,) = breaker.poke();
+        assertTrue(tripped);
+
+        chainInfo.setFrontier(KEY, FRONTIER, true);
+        (tripped,) = breaker.poke();
+        assertTrue(tripped, "catching up does not prove the old block remained canonical");
+
+        _record(FRONTIER - 5, 2468e8);
+        (tripped,) = breaker.poke();
+        assertFalse(tripped, "a newer in-bound observation restores the feed");
     }
 
     // --- age ------------------------------------------------------------------

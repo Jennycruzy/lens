@@ -64,8 +64,11 @@ contract MedianFeed is ILensFeed {
 
     function _answering() private view returns (uint256 n) {
         for (uint256 i = 0; i < _inputs.length; ++i) {
-            (bool ok,,) = _inputs[i].tryRead();
-            if (ok) ++n;
+            try _inputs[i].tryRead() returns (bool ok, uint256, uint256) {
+                if (ok) ++n;
+            } catch {
+                // A malformed integration is unavailable, not a zero-valued answer.
+            }
         }
     }
 
@@ -82,10 +85,13 @@ contract MedianFeed is ILensFeed {
         uint256 stalest;
 
         for (uint256 i = 0; i < n; ++i) {
-            (bool answered, uint256 v, uint256 age) = _inputs[i].tryRead();
-            if (!answered) continue;
-            values[count++] = v;
-            if (age > stalest) stalest = age;
+            try _inputs[i].tryRead() returns (bool answered, uint256 v, uint256 age) {
+                if (!answered) continue;
+                values[count++] = v;
+                if (age > stalest) stalest = age;
+            } catch {
+                // A feed that reverts on tryRead is unavailable and cannot count toward quorum.
+            }
         }
 
         if (count < QUORUM) return (false, 0, type(uint256).max);
@@ -103,7 +109,14 @@ contract MedianFeed is ILensFeed {
 
         // An even count averages the middle pair, which is the ordinary convention and
         // avoids favouring either side arbitrarily.
-        value = count % 2 == 1 ? values[count / 2] : (values[count / 2 - 1] + values[count / 2]) / 2;
+        if (count % 2 == 1) {
+            value = values[count / 2];
+        } else {
+            uint256 upper = values[count / 2];
+            uint256 lower = values[count / 2 - 1];
+            if (upper > type(uint256).max - lower) return (false, 0, type(uint256).max);
+            value = (lower + upper) / 2;
+        }
 
         return (true, value, stalest);
     }
@@ -155,8 +168,27 @@ contract RatioFeed is ILensFeed {
     }
 
     function _ratio() private view returns (bool ok, uint256 value, uint256 ageBlocks) {
-        (bool nOk, uint256 n, uint256 nAge) = NUMERATOR.tryRead();
-        (bool dOk, uint256 d, uint256 dAge) = DENOMINATOR.tryRead();
+        bool nOk;
+        uint256 n;
+        uint256 nAge;
+        try NUMERATOR.tryRead() returns (bool ok, uint256 value_, uint256 age_) {
+            nOk = ok;
+            n = value_;
+            nAge = age_;
+        } catch {
+            nOk = false;
+        }
+
+        bool dOk;
+        uint256 d;
+        uint256 dAge;
+        try DENOMINATOR.tryRead() returns (bool ok, uint256 value_, uint256 age_) {
+            dOk = ok;
+            d = value_;
+            dAge = age_;
+        } catch {
+            dOk = false;
+        }
 
         // Either leg refusing refuses the whole ratio. There is no partial answer.
         if (!nOk || !dOk) return (false, 0, type(uint256).max);
@@ -165,6 +197,8 @@ contract RatioFeed is ILensFeed {
         // The stalest leg, never the average, sets the age of the result.
         ageBlocks = nAge > dAge ? nAge : dAge;
 
+        // Refuse an overflowing intermediate rather than returning a wrapped ratio.
+        if (n > type(uint256).max / SCALE) return (false, 0, type(uint256).max);
         // Scale before dividing so precision is not lost in the division.
         value = (n * SCALE) / d;
         return (true, value, ageBlocks);

@@ -194,14 +194,19 @@ contract LensConsumerTest is Test {
     // --- a frontier that moves backwards ---------------------------------------
 
     /// A source-chain reorg can rewind the frontier below a height already recorded.
-    /// Age must clamp at zero rather than underflow into an enormous number, which
-    /// would read as "impossibly stale" and lock every consumer out.
-    function test_frontierBehindTheObservationClampsAgeToZero() public {
+    /// The observation may no longer be canonical, so every read must fail closed.
+    function test_frontierBehindTheObservationRefuses() public {
         _record(FRONTIER - 10, abi.encode(uint256(5)), true, false);
         chainInfo.setFrontier(KEY, FRONTIER - 100, true);
 
-        assertEq(reader.age(feedId), 0, "age clamps rather than underflowing");
-        assertEq(reader.readUint(feedId, 0), 5, "and the value stays readable at any bound");
+        assertEq(reader.age(feedId), type(uint256).max, "regression uses the refusal sentinel");
+        vm.expectRevert(abi.encodeWithSelector(LensConsumer.FeedStale.selector, feedId, type(uint256).max, uint256(0)));
+        reader.readUint(feedId, 0);
+
+        (bool ok, bytes memory data, uint256 age) = reader.tryRead(feedId, type(uint256).max);
+        assertFalse(ok, "even an unbounded caller cannot accept a regressed frontier");
+        assertEq(data.length, 0);
+        assertEq(age, type(uint256).max);
     }
 
     // --- freshness is never measured on the wrong clock -------------------------

@@ -143,6 +143,17 @@ contract LensAggregatorV3Test is Test {
         aggregator.latestRoundData();
     }
 
+    function test_frontierRegressionRefusesTheRound() public {
+        _record(FRONTIER - 10, 2467_03000000, true, false, SOURCE_TIME);
+        chainInfo.setFrontier(KEY, FRONTIER - 100, true);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(LensAggregatorV3.FeedStale.selector, feedId, type(uint256).max, uint256(MAX_AGE))
+        );
+        aggregator.latestRoundData();
+        assertEq(aggregator.ageInBlocks(), type(uint256).max);
+    }
+
     function test_feedAtExactlyMaxAgeIsStillServed() public {
         _record(FRONTIER - uint64(MAX_AGE), 2467_03000000, true, false, SOURCE_TIME);
         (, int256 answer,,,) = aggregator.latestRoundData();

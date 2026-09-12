@@ -77,15 +77,20 @@ contract VotePort {
     error NoProvenWeight(address voter, bytes32 feedId);
     error WeightIsZero(address voter);
     error ProofStale(uint256 age, uint256 maxAge);
+    error FrontierRegression(uint256 frontier, uint256 probeHeight);
     error ProofFailed();
     error NoSuchProposal(uint256 id);
 
     error SelectorRequired();
+    error UnsupportedSelector(bytes4 selector);
 
     constructor(LensRegistry registry, uint64 chainKey, address token, bytes4 weightSelector, uint256 maxAgeBlocks) {
         if (address(registry) == address(0)) revert RegistryRequired();
         if (token == address(0)) revert TokenRequired();
         if (weightSelector == bytes4(0)) revert SelectorRequired();
+        if (weightSelector != GET_PAST_VOTES && weightSelector != GET_PRIOR_VOTES) {
+            revert UnsupportedSelector(weightSelector);
+        }
         LENS = registry;
         CHAIN_KEY = chainKey;
         TOKEN = token;
@@ -176,7 +181,8 @@ contract VotePort {
         if (o.returnData.length != 32) revert ProofFailed();
 
         uint256 frontier = LENS.frontierOf(CHAIN_KEY);
-        uint256 age = frontier > o.probeHeight ? frontier - o.probeHeight : 0;
+        if (o.probeHeight > frontier) revert FrontierRegression(frontier, o.probeHeight);
+        uint256 age = frontier - o.probeHeight;
         if (age > MAX_AGE_BLOCKS) revert ProofStale(age, MAX_AGE_BLOCKS);
 
         return abi.decode(o.returnData, (uint256));

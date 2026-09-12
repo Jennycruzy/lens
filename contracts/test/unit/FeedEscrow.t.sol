@@ -147,6 +147,24 @@ contract FeedEscrowTest is Test {
         assertFalse(registry.hasObservation(feedId), "and nothing was recorded");
     }
 
+    function test_cannotClaimARewardForAnUnrelatedFeed() public {
+        bytes32 unrelated = registry.feedIdFromCallHash(KEY, address(0xD00D), keccak256("unrelated"));
+
+        vm.prank(funder);
+        escrow.fund{value: 1 ether}(unrelated, 0.1 ether, 0);
+
+        uint256 before = alice.balance;
+        bytes memory encoded = _encodedProbe(FRONTIER - 100, 1);
+        INativeQueryVerifier.MerkleProof memory mp = _proof();
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(LensRegistry.FeedNotRecorded.selector, unrelated));
+        escrow.submitAndClaim(KEY, FRONTIER - 100, encoded, mp, _continuity(), unrelated);
+
+        assertEq(alice.balance, before, "an unrelated proof cannot earn this feed's reward");
+        assertEq(escrow.fundingOf(unrelated).balance, 1 ether, "the unrelated feed stays funded");
+        assertFalse(registry.hasObservation(feedId), "the reverted claim records nothing");
+    }
+
     function test_aProberCannotDrainAFeedBySubmittingContinuously() public {
         vm.prank(funder);
         escrow.fund{value: 10 ether}(feedId, 1 ether, 100); // at most one reward per 100 blocks

@@ -24,8 +24,8 @@ import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol
  *
  *      The arithmetic is one subtraction — `frontier - probeHeight` — and it has exactly
  *      one dangerous case: the frontier moving *backwards* below a recorded height after
- *      a source-chain reorg. Unclamped that underflows to something near 2^256, which
- *      reads as impossibly stale and locks every consumer out of a feed that is fine.
+ *      a source-chain reorg. That observation may no longer be canonical, so the only
+ *      safe result is refusal until a newer observation is proven.
  */
 contract FreshnessArithmeticTest is Test {
     uint64 constant KEY = 1;
@@ -92,17 +92,17 @@ contract FreshnessArithmeticTest is Test {
     }
 
     /// The reorg case, at every distance a frontier could rewind to.
-    function test_ageClampsAtZeroForEveryDegreeOfFrontierRegression() public {
+    function test_everyDegreeOfFrontierRegressionRefuses() public {
         uint64 height = 1_000_000;
         _record(height + 10, height);
-        RegistryFeed feed = _feed(0);
+        RegistryFeed feed = _feed(type(uint256).max);
 
         uint64[8] memory rewound = [uint64(999_999), 900_000, 500_000, 1000, 100, 10, 1, 0];
         for (uint256 i = 0; i < rewound.length; i++) {
             chainInfo.setFrontier(KEY, rewound[i], true);
             (bool ok,, uint256 age) = feed.tryRead();
-            assertEq(age, 0, "age must clamp, never wrap");
-            assertTrue(ok, "and the value stays readable at any bound");
+            assertEq(age, type(uint256).max, "regression uses the refusal sentinel");
+            assertFalse(ok, "no age bound can admit a possibly reorged observation");
         }
     }
 
@@ -159,8 +159,10 @@ contract FreshnessArithmeticTest is Test {
         assertEq(age, 2, "still an ordinary difference at the top of the range");
 
         chainInfo.setFrontier(KEY, 0, true);
-        (,, age) = feed.tryRead();
-        assertEq(age, 0, "and a frontier of zero clamps rather than wrapping to 2^256");
+        uint256 regressedAge;
+        (ok,, regressedAge) = feed.tryRead();
+        assertFalse(ok, "a regressed frontier is never accepted");
+        assertEq(regressedAge, type(uint256).max, "and it cannot wrap or masquerade as fresh");
     }
 
     /// Nothing about Creditcoin's own clock or height may move the age.
@@ -178,18 +180,19 @@ contract FreshnessArithmeticTest is Test {
         }
     }
 
-    /// The whole space, randomly: age is the clamped difference and nothing else, and a
-    /// value is served if and only if that difference is within the caller's bound.
-    function testFuzz_ageIsTheClampedDifferenceAndGatesTheRead(uint64 frontier, uint64 height, uint64 maxAge) public {
+    /// The whole space, randomly: ordinary age is the source-height difference, while
+    /// a regressed frontier always refuses regardless of the caller's bound.
+    function testFuzz_ageDifferenceOrRegressionGatesTheRead(uint64 frontier, uint64 height, uint64 maxAge) public {
         height = uint64(bound(height, 1, type(uint64).max - 1));
         RegistryFeed feed = _feed(maxAge);
         _record(height, height); // record while the frontier admits it
         chainInfo.setFrontier(KEY, frontier, true);
 
-        uint256 expected = frontier > height ? uint256(frontier) - height : 0;
+        bool regressed = frontier < height;
+        uint256 expected = regressed ? type(uint256).max : uint256(frontier) - height;
         (bool ok,, uint256 age) = feed.tryRead();
 
-        assertEq(age, expected, "age is the clamped difference");
-        assertEq(ok, expected <= maxAge, "and it decides the read exactly");
+        assertEq(age, expected, "age is a difference or the regression sentinel");
+        assertEq(ok, !regressed && expected <= maxAge, "regression and age jointly gate the read");
     }
 }

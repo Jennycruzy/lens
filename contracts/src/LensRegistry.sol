@@ -102,6 +102,7 @@ contract LensRegistry {
     error BatchEmpty();
     error BatchTooLarge(uint256 length, uint256 maximum);
     error BatchLengthMismatch();
+    error FeedNotRecorded(bytes32 feedId);
     error NoObservation(bytes32 feedId);
 
     /**
@@ -170,7 +171,31 @@ contract LensRegistry {
             revert ProofRejected();
         }
 
-        return _record(chainKey, blockHeight, encodedTransaction, source.probe);
+        (recorded,) = _record(chainKey, blockHeight, encodedTransaction, source.probe, bytes32(0));
+    }
+
+    /// @notice Prove one probe transaction and require that it records `feedId`.
+    /// @dev Consumers that pay for a particular feed use this entry point so a valid
+    ///      proof for some other feed cannot be redirected into their escrow.
+    function submitProofForFeed(
+        uint64 chainKey,
+        uint64 blockHeight,
+        bytes calldata encodedTransaction,
+        INativeQueryVerifier.MerkleProof calldata merkleProof,
+        INativeQueryVerifier.ContinuityProof calldata continuityProof,
+        bytes32 requestedFeedId
+    ) external returns (uint256 recorded) {
+        Source memory source = _requireSource(chainKey);
+        _requireWithinAttestedRange(chainKey, blockHeight);
+        _consumeQuery(chainKey, blockHeight, merkleProof);
+
+        if (!VERIFIER.verifyAndEmit(chainKey, blockHeight, encodedTransaction, merkleProof, continuityProof)) {
+            revert ProofRejected();
+        }
+
+        bool found;
+        (recorded, found) = _record(chainKey, blockHeight, encodedTransaction, source.probe, requestedFeedId);
+        if (!found) revert FeedNotRecorded(requestedFeedId);
     }
 
     /**
@@ -203,7 +228,9 @@ contract LensRegistry {
         }
 
         for (uint256 i = 0; i < n; ++i) {
-            recorded += _record(chainKey, blockHeights[i], encodedTransactions[i], source.probe);
+            uint256 one;
+            (one,) = _record(chainKey, blockHeights[i], encodedTransactions[i], source.probe, bytes32(0));
+            recorded += one;
         }
     }
 
@@ -271,10 +298,13 @@ contract LensRegistry {
      *      the same transaction is ignored rather than rejected: a probe transaction is
      *      permissionless and may sit in a transaction that does other things.
      */
-    function _record(uint64 chainKey, uint64 blockHeight, bytes calldata encodedTransaction, address expectedProbe)
-        private
-        returns (uint256 recorded)
-    {
+    function _record(
+        uint64 chainKey,
+        uint64 blockHeight,
+        bytes calldata encodedTransaction,
+        address expectedProbe,
+        bytes32 requiredFeedId
+    ) private returns (uint256 recorded, bool requiredFound) {
         bytes memory encoded = encodedTransaction;
 
         // Check 1: inclusion is not success.
@@ -308,6 +338,7 @@ contract LensRegistry {
             if (emittedHeight != blockHeight) revert EmittedHeightMismatch(emittedHeight, blockHeight);
 
             bytes32 id = feedIdFromCallHash(chainKey, target, callHash);
+            if (id == requiredFeedId) requiredFound = true;
 
             // Check 4: newest-wins by source height, never by arrival order. Proofs
             // arrive out of order routinely, and an older one must not overwrite.

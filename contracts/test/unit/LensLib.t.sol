@@ -172,10 +172,19 @@ contract LensLibTest is Test {
         assertEq(age, 900);
     }
 
-    function test_frontierRegressionClampsRatherThanUnderflowing() public {
+    function test_frontierRegressionRefusesEveryRead() public {
         _record(FRONTIER - 10, abi.encode(uint256(3)), true, false);
         chainInfo.setFrontier(KEY, FRONTIER - 500, true);
-        assertEq(reader.age(feedId), 0);
-        assertEq(reader.readUint(feedId, 0), 3);
+
+        assertEq(reader.age(feedId), type(uint256).max);
+        vm.expectRevert(
+            abi.encodeWithSelector(LensLib.FeedStale.selector, feedId, type(uint256).max, type(uint256).max)
+        );
+        reader.readUint(feedId, type(uint256).max);
+
+        (bool ok, bytes memory data, uint256 age) = reader.tryRead(feedId, type(uint256).max);
+        assertFalse(ok);
+        assertEq(data.length, 0);
+        assertEq(age, type(uint256).max);
     }
 }
