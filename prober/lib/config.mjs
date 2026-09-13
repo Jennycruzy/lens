@@ -85,12 +85,49 @@ export function sourceProvider(chainId) {
   return new JsonRpcProvider(s.rpc, undefined, { staticNetwork: true });
 }
 
+/**
+ * Public Ethereum mainnet endpoints that serve historical state without a key. Checked
+ * on 2026-09-13: each answered eth_call at every proven mainnet height and allows
+ * browser requests. They are tried in order after the configured archive endpoint, so a
+ * historical comparison no longer needs a paid RPC to be conclusive.
+ */
+export const publicArchiveRpcs = {
+  1: [
+    'https://eth.drpc.org',
+    'https://rpc.mevblocker.io',
+    'https://eth-mainnet.public.blastapi.io',
+    'https://mainnet.gateway.tenderly.co',
+  ],
+};
+
+/** The endpoints to try, in order, for a read at a historical height. */
+export function historicalRpcs(chainId) {
+  const s = sources[chainId];
+  if (!s) throw new Error(`no RPC configured for chain id ${chainId}`);
+  const archive = Number(chainId) === 1 ? env.ETHEREUM_ARCHIVE_RPC : undefined;
+  return [...new Set([archive, s.rpc, ...(publicArchiveRpcs[chainId] ?? [])].filter(Boolean))];
+}
+
 /** Uses the configured archive endpoint only for historical comparisons. */
 export function historicalProvider(chainId) {
-  const s = sources[chainId];
-  const rpc = Number(chainId) === 1 ? (env.ETHEREUM_ARCHIVE_RPC || s?.rpc) : s?.rpc;
-  if (!s || !rpc) throw new Error(`no historical RPC configured for chain id ${chainId}`);
-  return new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+  return new JsonRpcProvider(historicalRpcs(chainId)[0], undefined, { staticNetwork: true });
+}
+
+/**
+ * A call at a historical height, tried against each endpoint in turn. Only when every
+ * endpoint declines is the read inconclusive; the last refusal is what is thrown.
+ */
+export async function historicalCall(chainId, request) {
+  let last;
+  for (const rpc of historicalRpcs(chainId)) {
+    const provider = new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+    try {
+      return { result: await provider.call(request), rpc };
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last;
 }
 
 export function proberWallet(chainId) {

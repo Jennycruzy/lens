@@ -7,7 +7,7 @@
 #          carries the public endpoints and deployments.json the addresses. Historical
 #          mainnet comparisons need ETHEREUM_ARCHIVE_RPC; without it they are reported as
 #          inconclusive, never as a pass.
-# coverage nightly.
+# coverage nightly, followed by the halmos proofs.
 version: 2.1
 
 executors:
@@ -90,6 +90,13 @@ jobs:
           name: coverage over src
           command: forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary
           no_output_timeout: 30m
+      - run:
+          name: symbolic proofs of the consumer's freshness arithmetic
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            ~/.local/bin/uv tool install halmos
+            ~/.local/bin/halmos --match-contract FreshnessSymbolicTest
+          no_output_timeout: 20m
 
 workflows:
   on-push:

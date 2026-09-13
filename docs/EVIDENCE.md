@@ -275,15 +275,15 @@ release audit, not a claim that the remaining measurement work is complete.
 |---|---|
 | Deployment parity | Green: `check-deployed` matches all ten current deployments to checked-in bytecode. |
 | Live operation | Green sample: `doctor` reports 0 failures across ten feeds and one low mainnet balance warning. |
-| Byte equality | Green: all ten source reads are byte-equal at their exact proven heights; zero divergence and zero unreachable checks with `ETHEREUM_ARCHIVE_RPC`. |
+| Byte equality | Green: all ten source reads are byte-equal at their exact proven heights, rechecked through public archive-capable endpoints with no key; zero divergence, zero unreachable. |
 | Product smoke | Green: feed explorer, consumers, builder validation and fail-closed cards pass `web-smoke`. |
 | Claims | Current deployment and transaction claims verify; run `node tools/verify-claims.mjs` after any doc edit. |
 | Coverage | Green: 95.01% lines (704/741), 89.94% statements, 61.90% branches; 200 tests pass. |
 | Verification | Green for the complete deployed graph: all eleven CC3 contracts are Blockscout verified; those eleven plus both source probes are Sourcify full matches (13 total). |
-| Operations | Sepolia keeper and indexer are running persistently on the VPS. The 24-hour latency/reorg distribution remains in collection; mainnet automation awaits funding. |
+| Operations | Sepolia keeper and indexer are running persistently on the VPS. End-to-end latency is published as a three-day distribution in `LATENCY.md`; mainnet automation awaits funding. |
 
-The current graph has source verification, archive differential, coverage and live
-unattended services. A full 24-hour measurement cannot be claimed until that clock has run.
+The current graph has source verification, archive differential, coverage, symbolic
+proofs of the consumer arithmetic and live unattended services.
 
 ### Fresh lending price (2026-09-13)
 

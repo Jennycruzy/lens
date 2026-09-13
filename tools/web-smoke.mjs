@@ -97,22 +97,30 @@ for (const feed of C.feeds) {
     continue;
   }
 
-  // The verify button's comparison, run here. A node that will not serve state at that
-  // height has told us nothing about whether the values agree, so it is kept apart from
-  // a divergence — the same rule the prober applies to a missing proof.
-  const provider = new JsonRpcProvider(C.sources[feed.chainId].rpc, undefined, { staticNetwork: true });
+  // The verify button's comparison, run here: the main endpoint, then the public archive
+  // endpoints the page carries. A node that will not serve state at that height has said
+  // nothing about agreement, so only when every endpoint declines is the row inconclusive.
+  const src = C.sources[feed.chainId];
   let onSource;
-  try {
-    onSource = await provider.call({
-      to: feed.target,
-      data: feed.calldata,
-      blockTag: Number(o.probeHeight),
-    });
-  } catch (e) {
-    const msg = e.shortMessage ?? e.message ?? '';
-    const archive = /archive|personal token|missing revert data|state.*not available/i.test(msg);
-    console.log(`  ${archive ? 'note' : 'FAIL'}  ${feed.name} — ${archive ? 'archive state unavailable on this RPC, so no comparison was possible' : msg.slice(0, 90)}`);
-    if (!archive) failures++;
+  let refused = false;
+  let lastMessage = '';
+  for (const rpc of [src.rpc, ...(src.archiveRpcs ?? [])]) {
+    try {
+      onSource = await new JsonRpcProvider(rpc, undefined, { staticNetwork: true }).call({
+        to: feed.target,
+        data: feed.calldata,
+        blockTag: Number(o.probeHeight),
+      });
+      break;
+    } catch (e) {
+      const msg = [e.shortMessage, e.message, e.info?.responseBody].filter(Boolean).join(' ');
+      if (/archive|personal token|missing revert data|state.*not available|403/i.test(msg)) refused = true;
+      lastMessage = (e.shortMessage ?? e.message ?? '').slice(0, 90);
+    }
+  }
+  if (onSource === undefined) {
+    console.log(`  ${refused ? 'note' : 'FAIL'}  ${feed.name} — ${refused ? 'every endpoint declined the historical block, so no comparison was possible' : lastMessage}`);
+    if (!refused) failures++;
     continue;
   }
 

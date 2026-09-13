@@ -74,8 +74,8 @@ it was watched directly across an eight-minute window, moving 11,676,120 → 11,
 
 So the frontier trails the head by roughly 30 to 40 blocks and closes that gap ten blocks
 at a time, which is consistent with the documented target of verification within about
-15 seconds of source-chain finalisation. Distribution over 24 hours is still being
-collected; what is above is direct observation over minutes, and is labelled as such.
+15 seconds of source-chain finalisation. What is above is direct observation over
+minutes; the end-to-end distribution over three days is in `LATENCY.md`.
 
 Attestation genesis height is `0` for both chains, so there is no lower bound on how far
 back a block can be proven beyond what the prover will build.
@@ -229,10 +229,10 @@ Measured against the live network, in order of when they block work:
 
 | Question | Why it matters | Status |
 |---|---|---|
-| Attestation lag distribution over 24h | published as a measurement, not a guess | samples across one afternoon only; consistent at 30–40 blocks, but not a distribution |
+| Latency distribution | published as a measurement, not a guess | 58 Sepolia and 4 mainnet proof landings over three days, p50 8.7 min, p95 11.4 min on Sepolia (`LATENCY.md`); still days, not weeks |
 | Frontier behaviour under a source-chain reorg | the circuit breaker trips on frontier regression | no reorg observed on either chain during the build. The breaker's response is covered by invariant and unit tests against a rewound frontier, not against a real reorg |
 | Proof builder rate limits and auth | failover policy | neither host publishes a schema or documents limits; none were hit at this volume, which is not evidence there are none |
-| Archive access for re-checking mainnet feeds | `verify` and the differential runner re-read at the proven height | public mainnet RPCs refuse archive requests without a token, so mainnet feeds report inconclusive rather than byte-equal. Sepolia is unaffected |
+| Archive access for re-checking mainnet feeds | `verify` and the differential runner re-read at the proven height | four public endpoints serve historical mainnet state without a key (drpc, mevblocker, blastapi, tenderly; checked 2026-09-13) and are tried in turn; all ten feeds recheck byte-equal without a paid RPC |
 
 ### `eth_estimateGas` on pallet-evm — answered, and it is worse than expected
 

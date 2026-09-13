@@ -15,7 +15,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { Contract } from 'ethers';
 import {
   feeds, callDataFor, decodeFor, chainKeyFor, computeFeedId,
-  creditcoin, historicalProvider, registryContract, addresses, sources,
+  creditcoin, historicalCall, registryContract, addresses, sources,
 } from '../prober/lib/config.mjs';
 
 const registry = registryContract();
@@ -43,10 +43,9 @@ for (const feed of feeds) {
   }
 
   // The comparison. Same target, same calldata, same height.
-  const provider = historicalProvider(feed.chainId);
   let onSource;
   try {
-    onSource = await provider.call({ to: feed.target, data: callData, blockTag: row.probeHeight });
+    ({ result: onSource, rpc: row.sourceRpc } = await historicalCall(feed.chainId, { to: feed.target, data: callData, blockTag: row.probeHeight }));
   } catch (e) {
     rows.push({ ...row, status: 'unreachable', note: e.shortMessage ?? e.message });
     continue;

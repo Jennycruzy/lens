@@ -9,7 +9,7 @@
  */
 import {
   feeds, feedByName, callDataFor, decodeFor, chainKeyFor, computeFeedId,
-  registryContract, historicalProvider, sources,
+  registryContract, historicalCall, sources,
 } from './lib/config.mjs';
 
 const name = process.argv[2];
@@ -55,18 +55,19 @@ for (const feed of selected) {
   // prober applies to the proof builder.
   let onSource;
   try {
-    onSource = await historicalProvider(feed.chainId).call({
+    ({ result: onSource } = await historicalCall(feed.chainId, {
       to: feed.target,
       data: callData,
       blockTag: Number(o.probeHeight),
-    });
+    }));
   } catch (e) {
     unchecked++;
     console.log(`  on chain unavailable`);
     console.log(`  INCONCLUSIVE — the RPC would not serve state at block ${o.probeHeight}`);
     console.log(`                 (${(e.shortMessage ?? e.message).slice(0, 90)})`);
     console.log(`                 this is an archive limitation, not a disagreement;`);
-    console.log(`                 set ${feed.chainId === 1 ? 'ETHEREUM_ARCHIVE_RPC' : 'an archive RPC'} to check it`);
+    console.log(`                 every configured and public archive endpoint declined; set`);
+    console.log(`                 ${feed.chainId === 1 ? 'ETHEREUM_ARCHIVE_RPC' : 'an archive RPC'} to check it`);
     continue;
   }
 

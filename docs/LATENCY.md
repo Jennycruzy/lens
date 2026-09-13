@@ -21,8 +21,8 @@ An earlier version of this file claimed a 150/200-block stride. That was wrong �
 figures were the distance from the latest attestation to the latest *checkpoint*, which is
 a different thing. The correction is recorded rather than quietly replaced.
 
-**This is minutes of observation, not a 24-hour distribution.** The figures are consistent
-across every run so far and they are labelled as a sample.
+Those lag figures are direct observations over minutes. The end-to-end distribution
+below is the measurement that covers days.
 
 ### The builder trails the chain
 
@@ -35,11 +35,29 @@ precompile alone returns a not-found, which is shaped exactly like "that transac
 not exist". The prober waits on the slower of the two answers, so a timing gap is never
 recorded as a missing transaction.
 
-### End to end
+### End to end, as a distribution
 
-A probe becomes a readable value on Creditcoin in roughly **8 to 9 minutes**. One
-unattended keeper cycle: probed at 19:51:40, all five feeds proved and byte-equal at
-20:00:03 — **8 minutes 23 seconds**.
+Every observation the indexer has recorded names its source block and the Creditcoin
+block the proof landed in. The difference between those two blocks' timestamps is how
+long after a source block a value could be acted on — the keeper's polling and the proof
+builder's lag included, not only the attestation lag.
+
+```
+node tools/latency-distribution.mjs
+```
+
+Run 2026-09-13 over `docs/evidence/observations.json`:
+
+| Source | Proof landings | Span | min | p50 | p90 | p95 | max |
+|---|---:|---|---:|---:|---:|---:|---:|
+| Sepolia | 58 | 73.6 h, 2026-09-10 17:40 → 2026-09-13 19:17 UTC | 7.3 min | **8.7 min** | 9.9 min | 11.4 min | 37.3 min |
+| Ethereum mainnet | 4 | 51.7 h, 2026-09-10 20:06 → 2026-09-12 23:49 UTC | 7.5 min | 9.3 min | 11.3 min | 11.3 min | 11.3 min |
+
+The 37-minute outlier is the release-day seven-feed batch (`0x6fad658a…`), submitted by
+hand after the prover's first response; every unattended keeper cycle landed inside
+twelve minutes. Four mainnet landings are a small set and are labelled as one. One
+unattended keeper cycle, timed directly: probed at 19:51:40, all five feeds proved and
+byte-equal at 20:00:03 — **8 minutes 23 seconds**.
 
 ## Gas
 

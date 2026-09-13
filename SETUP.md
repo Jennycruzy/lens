@@ -14,6 +14,13 @@ history is work written for it. `@gluwa/asc-contracts` and `@gluwa/usc-sdk` come
 and carry the precompile interfaces and proof tooling; `forge-std` is the Foundry test
 library.
 
+## Symbolic proofs
+
+```
+uv tool install halmos                          # or: pip install halmos
+halmos --match-contract FreshnessSymbolicTest   # five properties, proved for all inputs
+```
+
 ## Checking the deployment without deploying anything
 
 ```

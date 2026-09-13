@@ -11,7 +11,7 @@
  * rather than a reader noticing it.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { feeds, callDataFor, env, sources, addresses, deployments } from '../prober/lib/config.mjs';
+import { feeds, callDataFor, env, sources, addresses, deployments, publicArchiveRpcs } from '../prober/lib/config.mjs';
 
 const OUT = new URL('../web/config.js', import.meta.url);
 
@@ -131,6 +131,9 @@ ${Object.entries(sources)
       rpc: '${s.rpc}',
       explorer: '${id === '1' ? 'https://etherscan.io' : 'https://sepolia.etherscan.io'}',
       probe: '${deployments.sources[id]?.probe ?? ''}',
+      // Public endpoints that serve historical state, tried in order when the main one
+      // declines a past block. None needs a key.
+      archiveRpcs: ${JSON.stringify(publicArchiveRpcs[id] ?? [])},
     },`)
   .join('\n')}
   },

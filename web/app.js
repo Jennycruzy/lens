@@ -89,21 +89,29 @@ async function readFeed(feed) {
  * agree, so it is never shown as a divergence.
  */
 async function compare(feed, observation) {
-  try {
-    const onSource = await sourceProviders[feed.chainId].call({
-      to: feed.target,
-      data: feed.calldata,
-      blockTag: Number(observation.probeHeight),
-    });
-    return { outcome: onSource === observation.returnData ? 'equal' : 'diverged', onSource };
-  } catch (e) {
-    // ethers puts the RPC's own words in the response body, not the short message, and
-    // publicnode answers a historical call with a 403 and "archive requests require a
-    // personal token". All of that is "could not check here", never "diverged".
-    const msg = [e.shortMessage, e.message, e.info?.responseBody, e.info?.error?.message].filter(Boolean).join(' ');
-    const archive = /archive|personal token|missing revert data|state.*not available|missing trie node|header not found|403/i.test(msg);
-    return { outcome: archive ? 'archive' : 'error', message: e.shortMessage ?? e.message ?? '' };
+  const src = C.sources[feed.chainId];
+  const request = { to: feed.target, data: feed.calldata, blockTag: Number(observation.probeHeight) };
+  // The main endpoint first, then the public endpoints that serve historical state.
+  // Only when every one declines is the comparison inconclusive.
+  const attempts = [[src.rpc, sourceProviders[feed.chainId]], ...(src.archiveRpcs ?? []).map((rpc) => [rpc, null])];
+  let lastMessage = '';
+  let sawArchiveRefusal = false;
+  for (const [rpc, existing] of attempts) {
+    const provider = existing ?? new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+    try {
+      const onSource = await provider.call(request);
+      const via = new URL(rpc).host;
+      return { outcome: onSource === observation.returnData ? 'equal' : 'diverged', onSource, via };
+    } catch (e) {
+      // ethers puts the RPC's own words in the response body, not the short message, and
+      // publicnode answers a historical call with a 403 and "archive requests require a
+      // personal token". All of that is "could not check here", never "diverged".
+      const msg = [e.shortMessage, e.message, e.info?.responseBody, e.info?.error?.message].filter(Boolean).join(' ');
+      if (/archive|personal token|missing revert data|state.*not available|missing trie node|header not found|403/i.test(msg)) sawArchiveRefusal = true;
+      lastMessage = e.shortMessage ?? e.message ?? '';
+    }
   }
+  return { outcome: sawArchiveRefusal ? 'archive' : 'error', message: lastMessage };
 }
 
 function describeState(r) {
@@ -157,7 +165,7 @@ async function loadHeroFlow() {
     const v = $('hf-verdict');
     const c = await compare(feed, r.o);
     if (c.outcome === 'equal') {
-      v.textContent = '✓ VERIFIED · BYTE EQUAL, RECHECKED HERE';
+      v.textContent = `✓ VERIFIED · BYTE EQUAL, RECHECKED HERE VIA ${c.via.toUpperCase()}`;
     } else if (c.outcome === 'archive') {
       v.textContent = '✓ BYTE EQUAL AT PROOF TIME · ARCHIVE RPC NEEDED TO RECHECK HERE';
       v.classList.add('warn');
@@ -284,7 +292,7 @@ async function trace(feed) {
   if (c.outcome === 'equal') {
     $('oc-source').textContent = c.onSource;
     badge.className = 'badge ok';
-    badge.innerHTML = '✓ BYTE IDENTICAL<small>rechecked from the source chain in this browser, at the proven block</small>';
+    badge.innerHTML = `✓ BYTE IDENTICAL<small>rechecked from the source chain in this browser, at the proven block, via ${c.via}</small>`;
   } else if (c.outcome === 'diverged') {
     $('oc-source').textContent = c.onSource;
     badge.className = 'badge bad';
@@ -292,7 +300,7 @@ async function trace(feed) {
   } else if (c.outcome === 'archive') {
     $('oc-source').innerHTML = '<span class="warn">archive state unavailable on this public RPC</span>';
     badge.className = 'badge warn';
-    badge.innerHTML = '✓ BYTE EQUAL AT PROOF TIME<small>compared when proven and recorded in the evidence ledger. This public RPC will not serve the historical block; that is not a divergence. Sepolia feeds recheck live.</small>';
+    badge.innerHTML = '✓ BYTE EQUAL AT PROOF TIME<small>compared when proven and recorded in the evidence ledger. No reachable public endpoint would serve the historical block just now; that is not a divergence.</small>';
   } else {
     $('oc-source').innerHTML = `<span class="muted">${c.message.slice(0, 100)}</span>`;
     badge.className = 'badge warn';
@@ -347,7 +355,7 @@ function verifyButton(feed, o, cell) {
     btn.textContent = 'checking…';
     const c = await compare(feed, o);
     if (c.outcome === 'equal') {
-      cell.innerHTML = '<span class="pill ok">byte equal</span><div class="muted small" style="margin-top:6px">rechecked here</div>';
+      cell.innerHTML = `<span class="pill ok">byte equal</span><div class="muted small" style="margin-top:6px">rechecked here via ${c.via}</div>`;
     } else if (c.outcome === 'diverged') {
       cell.innerHTML = `<span class="pill bad">diverged</span><div class="hex mono small" style="margin-top:6px">source ${short(c.onSource, 20)}</div>`;
     } else if (c.outcome === 'archive') {
@@ -756,7 +764,7 @@ function loadEvidence() {
     ['Evidence ledger', 'every address and transaction behind a claim', `${gh}/docs/EVIDENCE.md`],
     ['Security model', 'six checks, and the attack each one stops', `${gh}/docs/SECURITY.md`],
     ['Latency measurements', 'lag and gas, with the receipts', `${gh}/docs/LATENCY.md`],
-    ['Limits', 'what Lens cannot do, volunteered', `${gh}/docs/LIMITS.md`],
+    ['Limits', 'what Lens cannot do, volunteered', 'https://github.com/Jennycruzy/lens#limits'],
     ['GitHub', 'contracts, prober, SDK, tests', 'https://github.com/Jennycruzy/lens'],
   ];
   const grid = $('evidence-grid');

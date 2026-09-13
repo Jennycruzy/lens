@@ -24,12 +24,18 @@ window.LENS = {
       rpc: 'https://ethereum-rpc.publicnode.com',
       explorer: 'https://etherscan.io',
       probe: '0x81b6DcbcE28EC0634DC905cfDc5eA84005915852',
+      // Public endpoints that serve historical state, tried in order when the main one
+      // declines a past block. None needs a key.
+      archiveRpcs: ["https://eth.drpc.org","https://rpc.mevblocker.io","https://eth-mainnet.public.blastapi.io","https://mainnet.gateway.tenderly.co"],
     },
     11155111: {
       label: "Ethereum Sepolia",
       rpc: 'https://ethereum-sepolia-rpc.publicnode.com',
       explorer: 'https://sepolia.etherscan.io',
       probe: '0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115',
+      // Public endpoints that serve historical state, tried in order when the main one
+      // declines a past block. None needs a key.
+      archiveRpcs: [],
     },
   },
 

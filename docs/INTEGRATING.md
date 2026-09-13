@@ -123,7 +123,8 @@ ever disagree, nothing else in this repository is worth reading.
 
 ## Before you go live
 
-- Read `LIMITS.md`. If your value must be current within a block, Lens is the wrong tool.
+- Read the Limits section of the README. If your value must be current within a block,
+  Lens is the wrong tool.
 - Make sure something keeps your feed fresh — `prober/keep.mjs`, or fund `FeedEscrow` so
   anyone is paid to.
 - Decide what your protocol does when a feed refuses, and test that path. It will happen.

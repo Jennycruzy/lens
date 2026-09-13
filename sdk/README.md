@@ -62,7 +62,7 @@ The four steps, end to end:
 const lens = new Lens(CREDITCOIN_RPC, REGISTRY);              // 1. construct
 const r = await lens.read(1, target, callData, 2400);         // 2. read: { ok, data, age } or { ok: false, refusal }
 if (!r.ok) console.log(r.refusal);                            // 3. an explicit refusal, never a guess
-const check = await lens.verify(1, target, callData, ARCHIVE_RPC); // 4. compare the bytes yourself
+const check = await lens.verify(1, target, callData, 'https://eth.drpc.org'); // 4. compare the bytes yourself, on any node that serves the block
 ```
 
 Calls the same contract with the same calldata on the source chain, at the exact height

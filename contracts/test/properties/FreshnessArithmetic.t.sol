@@ -15,12 +15,11 @@ import {ChainInfoStub, VerifierStub, TxFixture} from "../helpers/Precompiles.sol
 /**
  * @notice The freshness arithmetic, checked at every boundary that matters.
  *
- * @dev **This is exhaustive and randomised, not symbolic.** A symbolic prover would be
- *      the stronger tool here and the specification asks for one; halmos could not be
- *      installed in this environment, so the claim is not made. What is here instead is
- *      every boundary enumerated by hand plus a wide fuzz, which covers the same ground
- *      empirically. The distinction is recorded rather than blurred, because "proved" and
- *      "tested very hard" are different words.
+ * @dev **This is exhaustive and randomised.** It drives the real registry, with the
+ *      precompile stubs, through every boundary enumerated by hand plus a wide fuzz. The
+ *      symbolic proof of the same arithmetic — for all inputs, against a registry model —
+ *      is in `contracts/test/symbolic/`; the two cover the same ground from different
+ *      sides, and neither is a substitute for the other.
  *
  *      The arithmetic is one subtraction — `frontier - probeHeight` — and it has exactly
  *      one dangerous case: the frontier moving *backwards* below a recorded height after

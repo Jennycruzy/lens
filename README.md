@@ -41,9 +41,10 @@ expands the data available to all of them.
 
 The page reads Creditcoin and the source chains directly in your browser — there is no
 server and nothing cached. Pick a feed, watch the four stages, and press **Verify** to
-re-run the same call at the proven block and compare the bytes yourself. Sepolia feeds
-recheck live on public RPCs; Ethereum mainnet feeds need an archive endpoint to recheck
-historically and the page says so rather than showing a false result.
+re-run the same call at the proven block and compare the bytes yourself. Both Sepolia
+and Ethereum mainnet feeds recheck live: the page carries a short list of public
+endpoints that serve historical state, and only if every one of them declines does it
+say "could not check" rather than showing a false result.
 
 ## Why Lens exists
 
@@ -112,16 +113,54 @@ Verified cross-chain state for values whose meaning survives finality:
 - time-averaged inputs such as a 30-minute Uniswap observation
 - any checkpointed value a contract keeps itself
 
-## What Lens is not good for
+## Limits
 
-The measured attestation lag is seven to eight minutes. Lens is the wrong tool for an
-instantaneous AMM quote, a perp mark price, a block-sensitive liquidation engine or a
-sub-minute trading signal. It does not create storage proofs, so a contract that keeps
-no history cannot be asked about its past. A value whose original source is Chainlink
-keeps Chainlink's trust assumptions when Lens carries it; what Lens removes is the need
-for an additional trusted cross-chain reporter or bridge.
+What Lens cannot do, volunteered rather than discovered.
 
-Fuller, and blunter: [`docs/LIMITS.md`](docs/LIMITS.md).
+- **Not a spot feed.** The attestation frontier trails the source head by 30–40 blocks,
+  seven to eight minutes, advancing ten blocks at a time; source block to readable on
+  Creditcoin measured p50 8.7 min, p95 11.4 min over three days (`docs/LATENCY.md`).
+  Lens is the wrong tool for an instantaneous AMM quote, a perp mark price, a
+  block-sensitive liquidation engine or a sub-minute trading signal. Those need a feed
+  that can be wrong quickly rather than one that is right slowly.
+- **No storage proofs.** Historical state is available only where a contract keeps its
+  own checkpoints — `ERC20Votes.getPastVotes`, Compound-style `getPriorVotes`, Uniswap's
+  `observe`. A plain ERC-20 can only ever report its balance now, and no amount of
+  probing changes that.
+- **A carried feed keeps its origin's trust.** A value whose source is Chainlink is still
+  a Chainlink value when Lens carries it. What Lens removes is the additional trusted
+  cross-chain reporter or bridge, nothing more.
+- **Creditcoin's validators remain.** A value is as trustworthy as the attestation of the
+  block it came from. Every Attestcoin application shares that assumption; Lens is built
+  on it, not free of it.
+- **EVM only.** Attestcoin readability is EVM-only, so Lens is. A new source chain is a
+  configuration row, but it has to be an EVM chain Creditcoin attests.
+- **Sepolia prices mean nothing.** Sepolia's pools have no real liquidity; the Sepolia
+  price feed is Chainlink's real aggregator or nothing. Pool-derived values come from
+  Ethereum mainnet, where the stETH, ENS and Uniswap feeds live.
+- **The demonstration governance token is ours.** `LensVoteToken` on Sepolia is a real
+  OpenZeppelin `ERC20Votes` deployment, but we deployed it and hold the supply, because
+  Sepolia has almost no checkpointed governance tokens. Every other part of the path is
+  the production one, and the same technique is proven on mainnet against ENS's own
+  checkpoints; pointing `VotePort` at a widely-held token changes one constructor argument.
+- **No median is deployed.** `MedianFeed` is implemented and tested, but with one prober
+  and feeds that do not overlap between chains any median would average a value against
+  itself, so none is deployed.
+- **Coverage is not uniform.** 95.01% of lines, 89.94% of statements and 61.90% of
+  branches across `contracts/src`. `StateProbe` reads around 52% of lines because its
+  read path is inline assembly the instrument cannot see; it is covered by unit tests,
+  fork tests against real mainnet contracts and every end-to-end run.
+- **The symbolic proof covers the consumer, not the registry.** Five properties of the
+  freshness arithmetic are proved for all inputs with halmos against a registry model.
+  The registry's own six checks are tested adversarially, not proved.
+- **Mainnet history depends on someone serving it.** Byte comparisons at a proven height
+  need a node that still holds that state. Four public endpoints do today, without a
+  key, and the tools try each in turn; if every one declines, the result is
+  "inconclusive", never "diverged". The comparison was also made at proof time and is
+  recorded in `docs/EVIDENCE.md`.
+- **Three days of latency data, not thirty.** The distribution comes from 58 proof
+  landings on Sepolia and 4 on mainnet between 10 and 13 September. Consistent, but
+  short.
 
 ## Security model
 
@@ -172,11 +211,20 @@ npm run coverage                 # line, statement and branch coverage, labelled
 
 Unit, fork against real mainnet contracts, adversarial (one test per way of getting a
 wrong answer in), invariant (12 properties across four handlers), property tests over the
-freshness arithmetic, and a differential run against live feeds. Coverage figures, with
-the inline-assembly caveat, are in [`docs/LIMITS.md`](docs/LIMITS.md). No symbolic proof
-is claimed. No mocks sit in any demo path: the stubs in `contracts/test/helpers` drive the
-registry through states the live network will not hold still for, and every behaviour
-they cover is also exercised on-chain.
+freshness arithmetic, and a differential run against live feeds. Coverage is 95.01% of
+lines (see Limits for the assembly caveat).
+
+```
+halmos --match-contract FreshnessSymbolicTest   # 5 properties proved for all inputs
+```
+
+The consumer's freshness arithmetic is proved symbolically in
+`contracts/test/symbolic/`: a value is handed out only when present, succeeded, whole,
+not regressed and within the bound; every input meeting those conditions is accepted; a
+refusal never carries bytes; a regressed frontier is the maximum age, never zero; and
+the reverting and reporting reads agree. No mocks sit in any demo path: the stubs in
+`contracts/test/helpers` drive the registry through states the live network will not
+hold still for, and every behaviour they cover is also exercised on-chain.
 
 Every address, transaction and measurement behind a claim is in
 [`docs/EVIDENCE.md`](docs/EVIDENCE.md); lag and gas, each with its receipt, in
@@ -187,12 +235,12 @@ Every address, transaction and measurement behind a claim is in
 | | |
 |---|---|
 | `contracts/src` | `StateProbe`, `LensRegistry`, `LensConsumer`, `LensAggregatorV3`, composer, breaker, escrow, four consumers |
-| `contracts/test` | unit, adversarial, invariant, property and fork suites |
+| `contracts/test` | unit, adversarial, invariant, property, symbolic and fork suites |
 | `prober/` | probe, prove, batch, keep, watch, doctor — the operator CLI |
 | `sdk/` | the JavaScript SDK |
 | `web/` | the static explorer; `config.js` is generated from `prober/lib/config.mjs` |
 | `tools/` | deployment, parity, claim, infra and web verification |
-| `docs/` | [`SECURITY`](docs/SECURITY.md) · [`LIMITS`](docs/LIMITS.md) · [`INTEGRATING`](docs/INTEGRATING.md) · [`EVIDENCE`](docs/EVIDENCE.md) · [`LATENCY`](docs/LATENCY.md) · [`VERIFIED`](docs/VERIFIED.md) · [`FUNDING`](docs/FUNDING.md) |
+| `docs/` | [`SECURITY`](docs/SECURITY.md) · [`INTEGRATING`](docs/INTEGRATING.md) · [`EVIDENCE`](docs/EVIDENCE.md) · [`LATENCY`](docs/LATENCY.md) · [`VERIFIED`](docs/VERIFIED.md) · [`FUNDING`](docs/FUNDING.md) |
 | `SETUP.md` | building and running |
 
 ## Roadmap
@@ -205,8 +253,8 @@ built and what is next, labelled honestly:
   correctness still comes from proof verification rather than from trusting the prober.
   It is a primitive today, not a production marketplace.
 - **External integrators** on Creditcoin consuming existing feeds.
-- **A productionised keeper** with a funded mainnet prober and a 24-hour latency
-  distribution, replacing the current sampled measurements.
+- **A productionised keeper** with a funded mainnet prober and a latency distribution
+  over weeks rather than days.
 - **More Attestcoin-supported EVM sources** — a configuration row each, no contract change.
 - **Richer composition** for checkpointed state, and SDK publication on npm.
 
