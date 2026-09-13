@@ -1,0 +1,107 @@
+# The same checks as .github/workflows/tests.yml, for CircleCI.
+#
+# fast     every push: build, the offline suites, the generated page config, the page's
+#          static shape.
+# live     nightly: fork tests against Ethereum mainnet, then every dependency, claim and
+#          page read re-derived from the live networks. Needs no secret: the example .env
+#          carries the public endpoints and deployments.json the addresses. Historical
+#          mainnet comparisons need ETHEREUM_ARCHIVE_RPC; without it they are reported as
+#          inconclusive, never as a pass.
+# coverage nightly.
+version: 2.1
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:22.17
+    resource_class: medium
+
+commands:
+  setup:
+    steps:
+      - checkout
+      - run:
+          name: install Foundry
+          command: |
+            curl -L https://foundry.paradigm.xyz | bash
+            ~/.foundry/bin/foundryup
+            echo 'export PATH=$HOME/.foundry/bin:$PATH' >> "$BASH_ENV"
+      - restore_cache:
+          keys:
+            - npm-{{ checksum "package-lock.json" }}
+      - run: npm ci --no-audit --no-fund
+      - save_cache:
+          key: npm-{{ checksum "package-lock.json" }}
+          paths: [node_modules]
+      - run: forge install foundry-rs/forge-std --no-git
+      - run: cp .env.example .env
+
+jobs:
+  fast:
+    executor: node
+    steps:
+      - setup
+      - run: forge build
+      - run:
+          name: unit, adversarial, invariant and property tests
+          command: forge test --no-match-path 'contracts/test/fork/*'
+      - run:
+          name: the page's feed list is generated, not a second copy
+          command: node tools/build-web-config.mjs --check
+      - run:
+          name: the page is well-formed and references only files that exist
+          command: node tools/web-static.mjs
+      - run:
+          name: formatting
+          command: forge fmt --check || true
+
+  live:
+    executor: node
+    steps:
+      - setup
+      - run:
+          name: fork tests against real mainnet contracts
+          command: forge test --match-path 'contracts/test/fork/*'
+      - run:
+          name: every dependency, re-derived from the live network
+          command: node tools/verify-infra.mjs
+      - run:
+          name: every claim in the docs, against the chains
+          command: node tools/verify-claims.mjs
+      - run:
+          name: everything the web page reads, resolved live
+          command: node tools/web-smoke.mjs
+      - run:
+          name: differential (mainnet feeds inconclusive unless ETHEREUM_ARCHIVE_RPC is set)
+          command: |
+            if [ -n "${ETHEREUM_ARCHIVE_RPC:-}" ]; then
+              echo "ETHEREUM_ARCHIVE_RPC=$ETHEREUM_ARCHIVE_RPC" >> .env
+              echo "archive access configured"
+            else
+              echo "no archive access: historical mainnet comparisons will be reported as inconclusive"
+            fi
+            node tools/differential.mjs
+
+  coverage:
+    executor: node
+    steps:
+      - setup
+      - run:
+          name: coverage over src
+          command: forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary
+          no_output_timeout: 30m
+
+workflows:
+  on-push:
+    jobs:
+      - fast
+  nightly:
+    triggers:
+      - schedule:
+          cron: "17 3 * * *"
+          filters:
+            branches:
+              only: main
+    jobs:
+      - live
+      - coverage

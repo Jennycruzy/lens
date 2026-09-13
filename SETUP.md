@@ -32,3 +32,11 @@ node prober/prove.mjs <tx-hash> 11155111           # prove it to Creditcoin, com
 ```
 
 The second command waits for attestation, which takes about eight minutes.
+
+## Continuous checks
+
+`.circleci/config.yml` and `.github/workflows/tests.yml` run the same commands: the
+offline suites, the generated page config and the page's static shape on every push;
+the fork tests, the live infrastructure, claim, page and differential checks nightly.
+Neither needs a secret. Set `ETHEREUM_ARCHIVE_RPC` in the CI project to make the
+nightly mainnet comparisons conclusive; without it they are reported as inconclusive.
