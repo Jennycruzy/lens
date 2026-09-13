@@ -59,7 +59,7 @@ it is not deployed. The capability is real and the tests exercise it.
 
 ## Coverage is not uniform
 
-**93.16% of lines**, 88.74% of statements, 62.64% of branches across `contracts/src`; the 95%+ line target remains open.
+**95.01% of lines** (704/741), 89.94% of statements and 61.90% of branches across `contracts/src`; 200 tests pass.
 
 The two probes read around 52%, which understates them: their read paths are inline
 assembly, which the coverage instrument cannot see. They are covered by unit tests, fork
@@ -73,12 +73,12 @@ every boundary enumerated by hand — reorg distances, the bound at −1/exact/+
 bound, `type(uint64).max` extremes — plus a wide fuzz. That is "tested very hard", not
 "proved", and the difference is real.
 
-## Mainnet feeds cannot be re-checked without archive access
+## Mainnet historical verification requires archive access
 
-`lens verify` and `tools/differential.mjs` re-read the source contract at the height that
-was proven. Public Ethereum mainnet RPCs do not serve state that far back — a little over
-a hundred blocks was already refused — so those checks come back **inconclusive** for
-mainnet feeds until an archive endpoint is configured in `ETHEREUM_ARCHIVE_RPC`.
+`lens verify` and `tools/differential.mjs` re-read the source contract at the exact height
+that was proven. The release run configures `ETHEREUM_ARCHIVE_RPC` and completed all ten
+checks with zero divergence. Operators must provide equivalent archive access; an ordinary
+RPC can refuse old mainnet state.
 
 Inconclusive is reported as its own outcome and never as a divergence, and it does not
 fail the run. A node declining to answer says nothing about whether the values agree, and

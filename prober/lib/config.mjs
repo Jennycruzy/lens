@@ -85,6 +85,14 @@ export function sourceProvider(chainId) {
   return new JsonRpcProvider(s.rpc, undefined, { staticNetwork: true });
 }
 
+/** Uses the configured archive endpoint only for historical comparisons. */
+export function historicalProvider(chainId) {
+  const s = sources[chainId];
+  const rpc = Number(chainId) === 1 ? (env.ETHEREUM_ARCHIVE_RPC || s?.rpc) : s?.rpc;
+  if (!s || !rpc) throw new Error(`no historical RPC configured for chain id ${chainId}`);
+  return new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+}
+
 export function proberWallet(chainId) {
   return new Wallet(env.PROBER_PRIVATE_KEY, sourceProvider(chainId));
 }

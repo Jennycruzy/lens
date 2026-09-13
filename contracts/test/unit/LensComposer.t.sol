@@ -50,6 +50,15 @@ contract LensComposerTest is Test {
         f[2] = c;
     }
 
+    function test_publicMetadataMatchesConstructor() public {
+        ILensFeed[] memory expected = _feeds(new StubFeed(100, 1), new StubFeed(200, 2), new StubFeed(300, 3));
+        MedianFeed m = new MedianFeed(expected, 2, "median metadata");
+        ILensFeed[] memory actual = m.inputs();
+        assertEq(actual.length, expected.length);
+        assertEq(address(actual[1]), address(expected[1]));
+        assertEq(m.describe(), "median metadata");
+    }
+
     // --- median ---------------------------------------------------------------
 
     function test_takesTheMiddleValue() public {

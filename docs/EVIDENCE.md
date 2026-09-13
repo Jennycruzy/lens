@@ -271,13 +271,20 @@ release audit, not a claim that the remaining measurement work is complete.
 |---|---|
 | Deployment parity | Green: `check-deployed` matches all ten current deployments to checked-in bytecode. |
 | Live operation | Green sample: `doctor` reports 0 failures across ten feeds and one low mainnet balance warning. |
-| Byte equality | Green for seven source reads; three mainnet historical reads remain inconclusive without archive RPC. |
+| Byte equality | Green: all ten source reads are byte-equal at their exact proven heights; zero divergence and zero unreachable checks with `ETHEREUM_ARCHIVE_RPC`. |
 | Product smoke | Green: feed explorer, consumers, builder validation and fail-closed cards pass `web-smoke`. |
 | Claims | Current deployment and transaction claims verify; run `node tools/verify-claims.mjs` after any doc edit. |
-| Coverage | 93.16% lines across `contracts/src`; release target remains 95%+. |
-| Verification | Blockscout/Sourcify full-match evidence is still open for the current build. |
-| Operations | Persistent prober/indexer service, 24-hour latency/reorg measurements and archive differential are still open. |
+| Coverage | Green: 95.01% lines (704/741), 89.94% statements, 61.90% branches; 200 tests pass. |
+| Verification | Green for the headline graph: all eight CC3 deployments are Blockscout verified; those eight plus both source probes are Sourcify full matches. |
+| Operations | Sepolia keeper and indexer are running persistently on the VPS. The 24-hour latency/reorg distribution remains in collection; mainnet automation awaits funding. |
 
-The current graph is suitable for continued audit and demo work. It is not marked complete
-until source verification, archive differential, coverage and unattended operation have
-evidence.
+The current graph has source verification, archive differential, coverage and live
+unattended services. A full 24-hour measurement cannot be claimed until that clock has run.
+
+### Fresh lending price (2026-09-13)
+
+The Sepolia Chainlink ETH/USD feed was refreshed at source block `11694457` and proved to
+CC3 testnet with exact byte equality at **$2,520.54/ETH**.
+
+- source transaction: `0xb0436d409dbaee1f567422fd14ebe24ccfa1b696767fc030e62d8f925d8d72e8`
+- Creditcoin proof transaction: `0xff4d43f0fb465d4fd1a3f1aaef05ad1843d0736d1fe8c47ff44d194107caac42`

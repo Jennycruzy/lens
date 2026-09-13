@@ -9,7 +9,7 @@
  */
 import {
   feeds, feedByName, callDataFor, decodeFor, chainKeyFor, computeFeedId,
-  registryContract, sourceProvider, sources,
+  registryContract, historicalProvider, sources,
 } from './lib/config.mjs';
 
 const name = process.argv[2];
@@ -55,7 +55,7 @@ for (const feed of selected) {
   // prober applies to the proof builder.
   let onSource;
   try {
-    onSource = await sourceProvider(feed.chainId).call({
+    onSource = await historicalProvider(feed.chainId).call({
       to: feed.target,
       data: callData,
       blockTag: Number(o.probeHeight),

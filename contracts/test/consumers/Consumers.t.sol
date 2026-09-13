@@ -154,6 +154,10 @@ contract ReserveMonitorTest is ConsumerRig {
         vm.expectRevert(ReserveMonitor.CannotDetermineSolvency.selector);
         monitor.ratio();
     }
+
+    function test_descriptionExposesTheConfiguredFeed() public {
+        assertEq(monitor.description(), "issuer backing");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +399,18 @@ contract VotePortTest is ConsumerRig {
         assertEq(forVotes, 300e18);
         assertEq(against, 700e18);
         assertFalse(passed);
+    }
+
+    function test_publicProposalViewsExposeState() public {
+        uint256 id = port.propose("view this", snapshot, 3 days);
+        assertEq(port.proposalCount(), 1);
+        VotePort.Proposal memory p = port.proposalOf(id);
+        assertEq(p.description, "view this");
+        assertEq(p.snapshotBlock, snapshot);
+        (bool passed, uint256 forVotes, uint256 againstVotes) = port.outcome(id);
+        assertFalse(passed);
+        assertEq(forVotes, 0);
+        assertEq(againstVotes, 0);
     }
 }
 

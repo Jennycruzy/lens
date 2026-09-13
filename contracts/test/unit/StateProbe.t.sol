@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {Test, Vm} from "forge-std/Test.sol";
 import {StateProbe} from "../../src/source/StateProbe.sol";
+import {HistoryProbe} from "../../src/source/HistoryProbe.sol";
 
 /// @dev Returns a caller-chosen number of bytes, to attack the probe's memory use.
 contract Bomb {
@@ -230,5 +231,49 @@ contract StateProbeGasTest is Test {
         probe.probe(address(burner), hex"00");
         uint256 used = before - gasleft();
         assertLt(used, 2_500_000, "one read cannot burn an unbounded amount");
+    }
+}
+
+contract HistoryProbeTest is Test {
+    HistoryProbe probe;
+    Value value;
+
+    function setUp() public {
+        probe = new HistoryProbe();
+        value = new Value();
+    }
+
+    function test_probeHistoricalEmitsTheRead() public {
+        vm.recordLogs();
+        probe.probeHistorical(address(value), abi.encodeCall(Value.answer, ()));
+        assertEq(vm.getRecordedLogs().length, 1);
+    }
+
+    function test_probeManyHistoricalEmitsEveryRead() public {
+        address[] memory targets = new address[](2);
+        bytes[] memory datas = new bytes[](2);
+        targets[0] = address(value);
+        targets[1] = address(value);
+        datas[0] = abi.encodeCall(Value.answer, ());
+        datas[1] = abi.encodeCall(Value.answer, ());
+        vm.recordLogs();
+        probe.probeManyHistorical(targets, datas);
+        assertEq(vm.getRecordedLogs().length, 2);
+    }
+
+    function test_probeManyHistoricalRejectsEmptyBatch() public {
+        vm.expectRevert(StateProbe.EmptyBatch.selector);
+        probe.probeManyHistorical(new address[](0), new bytes[](0));
+    }
+
+    function test_probeManyHistoricalRejectsMismatchedLengths() public {
+        vm.expectRevert(abi.encodeWithSelector(StateProbe.LengthMismatch.selector, 1, 0));
+        probe.probeManyHistorical(new address[](1), new bytes[](0));
+    }
+
+    function test_probeManyHistoricalRejectsOversizeBatch() public {
+        uint256 n = probe.MAX_BATCH() + 1;
+        vm.expectRevert(abi.encodeWithSelector(StateProbe.BatchTooLarge.selector, n, probe.MAX_BATCH()));
+        probe.probeManyHistorical(new address[](n), new bytes[](n));
     }
 }

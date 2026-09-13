@@ -88,6 +88,15 @@ contract CircuitBreakerTest is Test {
         assertEq(h, FRONTIER - 10);
     }
 
+    function test_stateViewExposesStoredState() public {
+        _record(FRONTIER - 10, 2467e8);
+        breaker.poke();
+        CircuitBreaker.State memory s = breaker.state();
+        assertFalse(s.tripped);
+        assertEq(s.lastValue, 2467e8);
+        assertEq(s.lastHeight, FRONTIER - 10);
+    }
+
     // --- deviation ------------------------------------------------------------
 
     function test_aMoveInsideTheBoundIsAccepted() public {
@@ -105,6 +114,10 @@ contract CircuitBreakerTest is Test {
         breaker.poke();
         _record(FRONTIER - 10, 2200e8); // 10%
         (bool tripped, CircuitBreaker.Reason reason) = breaker.poke();
+        assertTrue(tripped);
+        assertEq(uint8(reason), uint8(CircuitBreaker.Reason.Deviation));
+
+        (tripped, reason) = breaker.status();
         assertTrue(tripped);
         assertEq(uint8(reason), uint8(CircuitBreaker.Reason.Deviation));
 

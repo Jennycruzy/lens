@@ -1,7 +1,7 @@
 /**
  * Keeps every feed inside its freshness bound, unattended.
  *
- *   node prober/keep.mjs [--once] [--interval <seconds>]
+ *   node prober/keep.mjs [--once] [--interval <seconds>] [--chain <chain-id>]
  *
  * One cycle: probe every feed for a chain in a single transaction, wait for the block to
  * be attested and ingested by the builder, prove them all under one shared continuity
@@ -21,6 +21,13 @@ const arg = (name, fallback) => {
 };
 const once = process.argv.includes('--once');
 const intervalMs = Number(arg('--interval', 900)) * 1000;
+const onlyChain = arg('--chain', null);
+const selectedFeeds = onlyChain ? feeds.filter((feed) => String(feed.chainId) === String(onlyChain)) : feeds;
+
+if (selectedFeeds.length === 0) {
+  console.error(`no configured feeds for chain ${onlyChain}`);
+  process.exit(64);
+}
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 let cycleRunning = false;
@@ -43,7 +50,7 @@ async function cycle() {
   }
   cycleRunning = true;
   try {
-  const byChain = feeds.reduce((m, f) => ((m[f.chainId] ??= []).push(f.name), m), {});
+  const byChain = selectedFeeds.reduce((m, f) => ((m[f.chainId] ??= []).push(f.name), m), {});
 
   for (const [chainId, names] of Object.entries(byChain)) {
     log(`probing ${names.length} feed(s) on chain ${chainId}`);
@@ -90,7 +97,7 @@ async function cycle() {
   }
 }
 
-log(`keeper starting, ${feeds.length} feed(s), ${once ? 'one cycle' : `every ${intervalMs / 1000}s`}`);
+log(`keeper starting, ${selectedFeeds.length} feed(s), ${once ? 'one cycle' : `every ${intervalMs / 1000}s`}`);
 await cycle();
 if (!once) {
   setInterval(() => {
