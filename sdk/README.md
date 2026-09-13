@@ -19,8 +19,11 @@ const rate = await lens.readValue(
 
 ## Two things worth knowing
 
+The package is not on npm yet; it is used from this repository. From a clone:
+
 ```
-npm install @jennycruzy/lens-sdk ethers
+npm install ethers
+npm install ./lens/sdk          # or import from '../lens/sdk/src/index.js' directly
 ```
 
 The registry address for CC3 testnet is in `deployments.json` at the repository root.

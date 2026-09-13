@@ -65,6 +65,8 @@ trust assumptions — Lens removes the need for a trusted cross-chain reporter, 
 
 ## From JavaScript
 
+The SDK is in `sdk/` of this repository (not on npm yet: `npm install ./lens/sdk`).
+
 ```js
 import { Lens } from '@jennycruzy/lens-sdk';
 const lens = new Lens(CREDITCOIN_RPC, REGISTRY);

@@ -710,7 +710,8 @@ require(block.timestamp - updatedAt <= maxAge, "stale");
 // A stale feed reverts inside latestRoundData() before you get this far.`;
 
   $('snippet-js').textContent =
-`import { Lens } from '@jennycruzy/lens-sdk';
+`// The SDK lives in sdk/ of the repository (not on npm yet): npm install ./lens/sdk
+import { Lens } from '@jennycruzy/lens-sdk';
 
 const lens = new Lens('${C.creditcoinRpc}', '${C.registry}');
 

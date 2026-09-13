@@ -256,7 +256,8 @@ built and what is next, labelled honestly:
 - **A productionised keeper** with a funded mainnet prober and a latency distribution
   over weeks rather than days.
 - **More Attestcoin-supported EVM sources** — a configuration row each, no contract change.
-- **Richer composition** for checkpointed state, and SDK publication on npm.
+- **Richer composition** for checkpointed state, and publication of the SDK (today it is
+  used from `sdk/` in this repository).
 
 Prior art, acknowledged: the staticcall-and-emit pattern is known, and Herodotus, Axiom
 and Lagrange solve state proofs cryptographically on Ethereum. What is original here is
