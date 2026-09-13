@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Integrate — Lens</title>
+<meta name="description" content="Read Lens from Solidity, through the AggregatorV3 interface, or from JavaScript. Every read carries a freshness bound." />
+<meta property="og:title" content="Integrate — Lens" />
+<meta property="og:description" content="Ethereum computes it. Attestcoin proves it. Creditcoin can act on it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="./">Lens</a>
+    <div class="nav-links">
+      <a href="./proof.html">Live proof</a>
+      <a href="./feeds.html">Feeds</a>
+      <a href="./consumers.html">Consumers</a>
+      <a href="./build.html">Build a feed</a>
+      <a href="./integrate.html" aria-current="page">Integrate</a>
+      <a href="./evidence.html">Evidence</a>
+      <a href="https://github.com/Jennycruzy/lens" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <span id="net-status" class="pill" aria-live="polite"><span class="dot"></span> CC3 testnet</span>
+  </div>
+</nav>
+
+<header class="pagehead">
+  <div class="wrap">
+    <div class="eyebrow">Integrate</div>
+    <h1>Three ways in.</h1>
+    <p class="lede">Every read carries a freshness bound; there is no version without one. Copy a snippet, resolve the chain key for your environment, choose a bound from what the value means.</p>
+  </div>
+</header>
+<main><section id="integrate" class="first">
+  <div class="wrap">
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="solidity" type="button">Solidity</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="aggregator" type="button">AggregatorV3</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="js" type="button">JavaScript</button>
+      </div>
+      <div class="panel" id="panel-solidity" role="tabpanel">
+        <p>Inherit <code>LensConsumer</code>. Resolve <code>sourceKey</code> from Creditcoin's ChainInfo for the environment you deploy to — chain keys are local to one environment, so never copy one from an example.</p>
+        <pre id="snippet-native"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-native" type="button">Copy</button></div>
+      </div>
+      <div class="panel" id="panel-aggregator" role="tabpanel" hidden>
+        <p><code>LensAggregatorV3</code> exposes an eligible Lens feed through the familiar <code>AggregatorV3Interface</code>, so contracts already written against it can consume slow-moving or time-averaged cross-chain state with minimal work. For that class of state only — not block-sensitive spot pricing or fast liquidations. A value whose original source is Chainlink keeps Chainlink's own trust assumptions; Lens removes the need for a trusted cross-chain reporter.</p>
+        <pre id="snippet-chainlink"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-chainlink" type="button">Copy</button></div>
+      </div>
+      <div class="panel" id="panel-js" role="tabpanel" hidden>
+        <p>The SDK takes native chain ids and resolves Attestcoin chain keys for the current Creditcoin environment. It refuses explicitly and lets you re-check the bytes yourself.</p>
+        <pre id="snippet-js"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-js" type="button">Copy</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="tight">
+  <div class="wrap">
+    <div class="section-head"><div class="eyebrow">Choosing a bound</div><h2>Pick it from what the value means.</h2></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Feed class</th><th>Suggested bound</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>30-minute observation / TWAP inputs</td><td class="mono">150–300 blocks</td><td>the average already spans longer than the lag</td></tr>
+        <tr><td>Liquid-staking rate</td><td class="mono">600–2400 blocks</td><td>moves basis points per day</td></tr>
+        <tr><td>Reserves, supply</td><td class="mono">600–1800 blocks</td><td>checkpoints, not ticks</td></tr>
+        <tr><td>Governance weight at a snapshot</td><td class="mono">5000+ blocks</td><td>the snapshot block is fixed; only the proof's age matters</td></tr>
+        <tr><td>Access lists, pause flags</td><td class="mono">300–900 blocks</td><td>change deliberately and rarely</td></tr>
+      </tbody>
+    </table></div>
+    <p class="secondary small" style="margin-top:12px">Any bound below about 50 can never be satisfied: the frontier trails the head by 30–40 blocks. Never widen a bound to make a revert go away — the revert is the feed saying it no longer describes what you think it does. Full guide: <a href="https://github.com/Jennycruzy/lens/blob/main/docs/INTEGRATING.md" target="_blank" rel="noopener">docs/INTEGRATING.md</a>.</p>
+  </div>
+</section>
+</main>
+<footer>
+  <div class="wrap">
+    <div>Lens · verified cross-chain contract reads for Creditcoin · MIT · <a href="./">home</a></div>
+    <div>Ethereum computes it. Attestcoin proves it. Creditcoin can act on it.</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

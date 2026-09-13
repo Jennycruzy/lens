@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Consumers — Lens</title>
+<meta name="description" content="Contracts on Creditcoin acting on proven Ethereum state, read live, refusing with a reason when the data is not good enough." />
+<meta property="og:title" content="Consumers — Lens" />
+<meta property="og:description" content="Ethereum computes it. Attestcoin proves it. Creditcoin can act on it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="./">Lens</a>
+    <div class="nav-links">
+      <a href="./proof.html">Live proof</a>
+      <a href="./feeds.html">Feeds</a>
+      <a href="./consumers.html" aria-current="page">Consumers</a>
+      <a href="./build.html">Build a feed</a>
+      <a href="./integrate.html">Integrate</a>
+      <a href="./evidence.html">Evidence</a>
+      <a href="https://github.com/Jennycruzy/lens" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <span id="net-status" class="pill" aria-live="polite"><span class="dot"></span> CC3 testnet</span>
+  </div>
+</nav>
+
+<header class="pagehead">
+  <div class="wrap">
+    <div class="eyebrow">Consumers</div>
+    <h1>Contracts on Creditcoin acting on proven state.</h1>
+    <p class="lede">Read live. When a consumer refuses, the card says why — that is the design working.</p>
+  </div>
+</header>
+<main><section id="consumers" class="first">
+  <div class="wrap">
+    <div class="cards" id="consumers-grid"></div>
+    <div class="more" id="more-primitives"><span>More primitives, deployed and tested:</span></div>
+  </div>
+</section><section id="failclosed" class="tight">
+  <div class="wrap">
+    <p class="mantra">A missing value is not zero. <span>A stale value is not current.</span><span>A failed call is not data.</span></p>
+    <div class="refuse">
+      <div class="card"><div class="state">MISSING</div><div class="why">never proven</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">FAILED</div><div class="why">source call reverted</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">TRUNCATED</div><div class="why">answer incomplete</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">STALE</div><div class="why">outside the consumer's bound</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+    </div>
+    <p class="secondary small" style="margin-top:14px">Four distinct errors, because a caller that cannot tell them apart cannot react correctly to any of them. Live refusals appear on the <a href="./consumers.html">consumer cards</a>, with the reason.</p>
+  </div>
+</section></main>
+<footer>
+  <div class="wrap">
+    <div>Lens · verified cross-chain contract reads for Creditcoin · MIT · <a href="./">home</a></div>
+    <div>Ethereum computes it. Attestcoin proves it. Creditcoin can act on it.</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

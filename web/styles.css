@@ -310,3 +310,17 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: 
   html { scroll-behavior: auto; }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* --- sub-pages --- */
+.pagehead { padding-block: 56px 8px; }
+.pagehead h1 { font-size: clamp(28px, 3.6vw, 42px); font-weight: 650; max-width: 820px; }
+.pagehead .lede { color: var(--text-secondary); font-size: 16px; margin-top: 14px; max-width: 720px; }
+section.first { border-top: none; padding-top: 32px; }
+.nav-links a[aria-current="page"] { color: var(--text); }
+.cards.explore { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.explore a.card { display: flex; flex-direction: column; color: var(--text); }
+.explore a.card:hover { text-decoration: none; border-color: var(--border-strong); background: var(--surface-2); }
+.explore a.card h3 { margin-top: 6px; }
+.explore a.card p { flex: 1; }
+.explore .go { color: var(--verified); font-size: 13px; font-weight: 600; margin-top: 14px; }
+@media (max-width: 768px) { .pagehead { padding-block: 36px 4px; } }

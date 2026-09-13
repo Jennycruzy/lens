@@ -39,9 +39,15 @@ expands the data available to all of them.
 
 <https://lens.54-154-121-30.sslip.io>
 
-The page reads Creditcoin and the source chains directly in your browser — there is no
-server and nothing cached. Pick a feed, watch the four stages, and press **Verify** to
-re-run the same call at the proven block and compare the bytes yourself. Both Sepolia
+The site reads Creditcoin and the source chains directly in your browser — there is no
+server and nothing cached. The landing page explains the idea; the pages behind it show
+it working: [Live proof](https://lens.54-154-121-30.sslip.io/proof.html) (one feed, four
+stages, the real transactions, a byte comparison), [Feeds](https://lens.54-154-121-30.sslip.io/feeds.html),
+[Consumers](https://lens.54-154-121-30.sslip.io/consumers.html),
+[Build a feed](https://lens.54-154-121-30.sslip.io/build.html),
+[Integrate](https://lens.54-154-121-30.sslip.io/integrate.html) and
+[Evidence](https://lens.54-154-121-30.sslip.io/evidence.html). Press **Verify** on any feed
+to re-run the same call at the proven block and compare the bytes yourself. Both Sepolia
 and Ethereum mainnet feeds recheck live: the page carries a short list of public
 endpoints that serve historical state, and only if every one of them declines does it
 say "could not check" rather than showing a false result.

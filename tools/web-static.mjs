@@ -5,18 +5,26 @@
  *
  *   node tools/web-static.mjs
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
 const web = new URL('../web/', import.meta.url);
-const html = readFileSync(new URL('index.html', web), 'utf8');
 let failures = 0;
 const say = (ok, line) => {
   if (!ok) failures++;
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${line}`);
 };
 
-for (const ref of [...html.matchAll(/(?:src|href)="\.\/([^"]+)"/g)].map((m) => m[1])) {
-  say(existsSync(new URL(ref, web)), `${ref} exists`);
+// Every page, and every local file or page each one links to.
+const pages = readdirSync(web).filter((f) => f.endsWith('.html'));
+const seen = new Set();
+for (const page of pages) {
+  const html = readFileSync(new URL(page, web), 'utf8');
+  for (const ref of [...html.matchAll(/(?:src|href)="\.\/([^"#?]*)/g)].map((m) => m[1] || 'index.html')) {
+    if (seen.has(ref)) continue;
+    seen.add(ref);
+    say(existsSync(new URL(ref, web)), `${ref} exists (linked from ${page})`);
+  }
+  say(/<script src="\.\/config\.js"><\/script>\s*<script src="\.\/app\.js">/.test(html), `${page} loads config.js before app.js`);
 }
 
 const window = {};
@@ -37,7 +45,7 @@ for (const feed of C.feeds) {
   }
 }
 
-for (const file of ['index.html', 'app.js', 'config.js', 'styles.css']) {
+for (const file of [...pages, 'app.js', 'config.js', 'styles.css']) {
   const text = readFileSync(new URL(file, web), 'utf8');
   // Transaction hashes and feed ids are 32-byte hex too, so keys are not searched for
   // by shape; keyed RPC endpoints have recognisable hosts.

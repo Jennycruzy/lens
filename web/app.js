@@ -395,10 +395,7 @@ async function loadFeaturedFeeds() {
       card.querySelector('.b').textContent = num(r.o.probeHeight);
       card.querySelector('.a').textContent = `${r.age} blocks · ${minutes(r.age)}`;
       card.querySelector('.p').innerHTML = '<span class="ok">VERIFIED</span>';
-      const view = el('button', 'btn small', 'View proof');
-      view.type = 'button';
-      view.onclick = () => { trace(feed); document.getElementById('proof').scrollIntoView({ behavior: 'smooth' }); };
-      actions.appendChild(view);
+      actions.insertAdjacentHTML('beforeend', `<a class="btn small" href="./proof.html?feed=${encodeURIComponent(feed.name)}">View proof</a>`);
       actions.insertAdjacentHTML('beforeend',
         `<a class="btn small" href="${src.explorer}/address/${feed.target}" target="_blank" rel="noopener">Source</a>` +
         `<a class="btn small" href="${C.explorer}/address/${C.registry}" target="_blank" rel="noopener">Creditcoin</a>`);
@@ -775,15 +772,43 @@ function loadEvidence() {
   }
 }
 
+/** Deployment addresses, for the evidence page. */
+function loadAddresses() {
+  const rows = [
+    ['LensRegistry', C.registry], ['LensAggregatorV3', C.aggregator], ['ReserveMonitor', C.reserveMonitor],
+    ['LensMarket', C.market], ['VotePort', C.votePort], ['SnapshotProver', C.snapshotProver],
+    ['CircuitBreaker', C.breaker], ['FeedEscrow', C.escrow],
+  ];
+  const tbody = document.querySelector('#addresses tbody');
+  tbody.innerHTML = '';
+  for (const [name, addr] of rows) {
+    tbody.insertAdjacentHTML('beforeend', `<tr><td>${name}</td><td class="mono">${link(`${C.explorer}/address/${addr}`, addr)}</td><td class="muted">Creditcoin CC3 testnet</td></tr>`);
+  }
+  for (const [id, src] of Object.entries(C.sources)) {
+    tbody.insertAdjacentHTML('beforeend', `<tr><td>StateProbe</td><td class="mono">${link(`${src.explorer}/address/${src.probe}`, src.probe)}</td><td class="muted">${src.label}</td></tr>`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// One script for every page: each part runs only where its elements exist.
+
+const has = (id) => document.getElementById(id) !== null;
+const periodic = [];
+
 loadStatus();
-loadHeroFlow();
-buildChooser();
-trace(featuredFeeds()[0] ?? C.feeds[0]);
-loadFeaturedFeeds();
-loadFeedTable();
-loadConsumers();
-loadLatency();
-loadBuilder();
-loadSnippets();
-loadEvidence();
-setInterval(() => { loadStatus(); loadFeaturedFeeds(); loadFeedTable(); loadLatency(); }, 60000);
+periodic.push(loadStatus);
+if (has('hero-flow')) loadHeroFlow();
+if (has('proof-chooser')) {
+  buildChooser();
+  const wanted = new URLSearchParams(location.search).get('feed');
+  trace(C.feeds.find((f) => f.name === wanted) ?? featuredFeeds()[0] ?? C.feeds[0]);
+}
+if (has('featured')) { loadFeaturedFeeds(); periodic.push(loadFeaturedFeeds); }
+if (has('feeds-table')) { loadFeedTable(); periodic.push(loadFeedTable); }
+if (has('consumers-grid')) { loadConsumers(); }
+if (has('latency')) { loadLatency(); periodic.push(loadLatency); }
+if (has('b-chain')) loadBuilder();
+if (has('snippet-native')) loadSnippets();
+if (has('evidence-grid')) loadEvidence();
+if (has('addresses')) loadAddresses();
+setInterval(() => periodic.forEach((f) => f()), 60000);
