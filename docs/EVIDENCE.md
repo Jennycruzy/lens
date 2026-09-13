@@ -275,7 +275,7 @@ release audit, not a claim that the remaining measurement work is complete.
 | Product smoke | Green: feed explorer, consumers, builder validation and fail-closed cards pass `web-smoke`. |
 | Claims | Current deployment and transaction claims verify; run `node tools/verify-claims.mjs` after any doc edit. |
 | Coverage | Green: 95.01% lines (704/741), 89.94% statements, 61.90% branches; 200 tests pass. |
-| Verification | Green for the headline graph: all eight CC3 deployments are Blockscout verified; those eight plus both source probes are Sourcify full matches. |
+| Verification | Green for the complete deployed graph: all eleven CC3 contracts are Blockscout verified; those eleven plus both source probes are Sourcify full matches (13 total). |
 | Operations | Sepolia keeper and indexer are running persistently on the VPS. The 24-hour latency/reorg distribution remains in collection; mainnet automation awaits funding. |
 
 The current graph has source verification, archive differential, coverage and live

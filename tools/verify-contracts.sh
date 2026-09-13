@@ -22,6 +22,8 @@ PROBE_MAINNET=${PROBE_MAINNET:-$LENS_PROBE}
 PROBE_SEPOLIA=${LENS_PROBE_11155111:-$(node -p "JSON.parse(require('fs').readFileSync('deployments.json')).sources['11155111']?.probe || ''")}
 PROBE_SEPOLIA=${PROBE_SEPOLIA:-$LENS_PROBE}
 RATIO_ADDRESS=$(node -p "JSON.parse(require('fs').readFileSync('docs/evidence/deployments.json'))['ratio.backingOverIssued'] || ''")
+FEED_BACKING=$(node -p "JSON.parse(require('fs').readFileSync('docs/evidence/deployments.json'))['feed.aaveBacking'] || ''")
+FEED_ISSUED=$(node -p "JSON.parse(require('fs').readFileSync('docs/evidence/deployments.json'))['feed.awethIssued'] || ''")
 
 BS=https://creditcoin-testnet.blockscout.com
 V=(--verifier blockscout --verifier-url "$BS/api/" --compiler-version 0.8.30)
@@ -94,10 +96,14 @@ verify "$LENS_SNAPSHOT"        contracts/src/consumers/SnapshotProver.sol:Snapsh
 
 verify "$LENS_RESERVE_MONITOR" contracts/src/consumers/ReserveMonitor.sol:ReserveMonitor   "$(ENC 'constructor(address,uint256,string)' "$RATIO_ADDRESS" 1000000000000000000 "Aave Sepolia aWETH backing")"
 
+verify "$FEED_BACKING" contracts/src/RegistryFeed.sol:RegistryFeed   "$(ENC 'constructor(address,uint64,bytes32,uint256,string)' "$LENS_REGISTRY" 1 0xd774755ae7182cbd58c5f38c90a6d219b8511641e9c6c886a3f0075bc0735d7e 900 "WETH backing aWETH")"
+verify "$FEED_ISSUED" contracts/src/RegistryFeed.sol:RegistryFeed   "$(ENC 'constructor(address,uint64,bytes32,uint256,string)' "$LENS_REGISTRY" 1 0x27d6df587bf9a5092339c4bf36dab8ca9c0e77b147a71a0bf5b2364f2f85cdd7 900 "aWETH issued")"
+verify "$RATIO_ADDRESS" contracts/src/LensComposer.sol:RatioFeed   "$(ENC 'constructor(address,address,uint256,string)' "$FEED_BACKING" "$FEED_ISSUED" 1000000000000000000 "aWETH backing ratio")"
+
 echo
 echo "waiting for the Blockscout queue to drain, then reporting what stuck"
 sleep 20
-for pair in "LensRegistry:$LENS_REGISTRY" "LensAggregatorV3:$LENS_AGGREGATOR_ETHUSD" "LensMarket:$LENS_MARKET"             "CircuitBreaker:$LENS_BREAKER" "FeedEscrow:$LENS_ESCROW" "VotePort:$LENS_VOTEPORT"             "SnapshotProver:$LENS_SNAPSHOT" "ReserveMonitor:$LENS_RESERVE_MONITOR"; do
+for pair in "LensRegistry:$LENS_REGISTRY" "LensAggregatorV3:$LENS_AGGREGATOR_ETHUSD" "LensMarket:$LENS_MARKET"             "CircuitBreaker:$LENS_BREAKER" "FeedEscrow:$LENS_ESCROW" "VotePort:$LENS_VOTEPORT"             "SnapshotProver:$LENS_SNAPSHOT" "ReserveMonitor:$LENS_RESERVE_MONITOR"             "RegistryFeed-backup:$FEED_BACKING" "RegistryFeed-issued:$FEED_ISSUED" "RatioFeed:$RATIO_ADDRESS"; do
   name=${pair%%:*}; addr=${pair#*:}
   if verified "$addr"; then echo "  verified  $name  $addr"; else echo "  NOT YET   $name  $addr"; FAILURES=$((FAILURES + 1)); fi
 done
@@ -112,6 +118,9 @@ verify_sourcify "$LENS_ESCROW" contracts/src/FeedEscrow.sol:FeedEscrow   0xc7c0d
 verify_sourcify "$LENS_VOTEPORT" contracts/src/consumers/VotePort.sol:VotePort   0xcd9d1ee636531ca7a6fe0e5e6ca6bc25fde7ce32fbb2136903430153cf2f560a
 verify_sourcify "$LENS_SNAPSHOT" contracts/src/consumers/SnapshotProver.sol:SnapshotProver   0xc91f3684d4119acc6717af3dab4c7d543ae49eec6da8904d8a04d97920f0824a
 verify_sourcify "$LENS_RESERVE_MONITOR" contracts/src/consumers/ReserveMonitor.sol:ReserveMonitor   0x44478b5e14f27a0728ca1ec03f1ef064a72e14e191974f52472057de20c0fe31
+verify_sourcify "$FEED_BACKING" contracts/src/RegistryFeed.sol:RegistryFeed   0xdc58aeb56b5e1b18b0570860e358f92f9578c84ad8a9bb774a053213f996c352
+verify_sourcify "$FEED_ISSUED" contracts/src/RegistryFeed.sol:RegistryFeed   0x66bcab99f7c540a71325cfe089a256b6a7cc9829c2b86470f02df366d09e66c4
+verify_sourcify "$RATIO_ADDRESS" contracts/src/LensComposer.sol:RatioFeed   0x483b817a82514e25b3eed6d2c5e5ead2abcdc97c1886862ee8e5b161cb4e0ed2
 verify_sourcify "$PROBE_MAINNET" contracts/src/source/StateProbe.sol:StateProbe   0xfbc6952c018ac1155797efc638433308de874f96902c4bd51cc47dc6453aebf 1
 verify_sourcify "$PROBE_SEPOLIA" contracts/src/source/StateProbe.sol:StateProbe   0xf0a89d2f6694406d98510f400b2136a05f206d35863ff9a81e2e71d9c6b549ae 11155111
 
