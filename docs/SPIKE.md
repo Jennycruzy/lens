@@ -15,7 +15,7 @@ recorded first because it was done first.
 | Call | `observe([1800, 0])` — a 30-minute time-weighted observation |
 | Source block | 25,963,759 |
 | Probe transaction | [`0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977`](https://etherscan.io/tx/0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977) |
-| Returndata | **288 bytes**, two dynamic arrays |
+| Returndata | **256 bytes**, two dynamic arrays |
 | Result | byte-equal to a direct `eth_call` at the same height |
 
 ```
@@ -31,12 +31,12 @@ decoded       : tick cumulatives 33517032611471, 33517389414071
 A fixed 32-byte return is the easy case. The escalation the design notes call for was
 fixed-width → single dynamic word → array, recording where it breaks.
 
-`observe(uint32[])` returns **two dynamic arrays** — offsets, lengths and elements, 288
+`observe(uint32[])` returns **two dynamic arrays** — offsets, lengths and elements, 256
 bytes in total. It is the hardest shape in the ordinary feed set, and it survived the
 whole path intact: emitted by the probe, carried in the transaction encoding, proven by
 the precompile, decoded by the registry, and stored.
 
-**It does not break at 288 bytes.** The probe caps returndata at 8,192 bytes and flags
+**It does not break at 256 bytes.** The probe caps returndata at 8,192 bytes and flags
 anything longer as truncated, and a consumer refuses a truncated value rather than
 decoding a prefix. Where the proof path itself would fail is above that cap and has not
 been reached, because nothing sensible to probe returns that much.

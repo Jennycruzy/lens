@@ -50,8 +50,9 @@ is recorded with its source-chain deployment transaction before the registry is 
 | `StateProbe` deployment | Ethereum mainnet | [`0xfbc6952c018ac1155797efc638433308de874f96902c4bd51cc47dc6453aebf3`](https://etherscan.io/tx/0xfbc6952c018ac1155797efc638433308de874f96902c4bd51cc47dc6453aebf3) |
 | Seven feeds probed in one transaction | Sepolia | [`0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd`](https://sepolia.etherscan.io/tx/0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd) |
 | Seven observations proven under one continuity proof | CC3 testnet | [`0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504`](https://creditcoin-testnet.blockscout.com/tx/0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504) |
-| Three mainnet feeds probed in one transaction | Ethereum mainnet | [`0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977`](https://etherscan.io/tx/0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977) |
-| Three observations proven under one continuity proof | CC3 testnet | [`0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde`](https://creditcoin-testnet.blockscout.com/tx/0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde) |
+| Two mainnet feeds (ENS, Uniswap) probed in one transaction | Ethereum mainnet | [`0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977`](https://etherscan.io/tx/0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977) |
+| Three mainnet observations, from two source transactions, proven under one continuity proof | CC3 testnet | [`0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde`](https://creditcoin-testnet.blockscout.com/tx/0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde) |
+| Three mainnet feeds (stETH, ENS, Uniswap) probed in one transaction | Ethereum mainnet | [`0x2e0728a4315fba446b207c45074a62a2c59b6a875fa1d69a98536565c25ec27f`](https://etherscan.io/tx/0x2e0728a4315fba446b207c45074a62a2c59b6a875fa1d69a98536565c25ec27f) |
 | `LensRegistry` deployment, current | CC3 testnet | [`0x235b8baec382ef0d7e7e0d6a9d3ea9a984ad1fe33b6a59b757b09a7caeaad036`](https://creditcoin-testnet.blockscout.com/tx/0x235b8baec382ef0d7e7e0d6a9d3ea9a984ad1fe33b6a59b757b09a7caeaad036) |
 | `LensAggregatorV3` deployment, current | CC3 testnet | [`0x09ecabf2fd8dc3858f1f4e0354b1f55dce17f07bfd1169f9339390212ebf1964`](https://creditcoin-testnet.blockscout.com/tx/0x09ecabf2fd8dc3858f1f4e0354b1f55dce17f07bfd1169f9339390212ebf1964) |
 | `RegistryFeed` backing deployment | CC3 testnet | [`0xdc58aeb56b5e1b18b0570860e358f92f9578c84ad8a9bb774a053213f996c352`](https://creditcoin-testnet.blockscout.com/tx/0xdc58aeb56b5e1b18b0570860e358f92f9578c84ad8a9bb774a053213f996c352) |
@@ -102,9 +103,11 @@ rather than reporting the wrong chain's state.
 | Attestation lag, Ethereum mainnet | 36 blocks, about 7 minutes | `VERIFIED.md` |
 | Attestation lag, Sepolia | 37 blocks, about 7 minutes | `VERIFIED.md` |
 | Seven Sepolia feeds in one `probeMany` transaction | 129,311 gas | source receipt `0x4a8cff...` |
-| Three mainnet feeds in one `probeMany` transaction | 99,139 gas | source receipt `0xf701eb...` |
+| Three mainnet feeds in one `probeMany` transaction | 143,660 gas | source receipt `0x2e0728...`, 2026-09-13 |
+| Two mainnet feeds (ENS, Uniswap) in one `probeMany` transaction | 99,139 gas | source receipt `0xf701eb...`, 2026-09-12 |
 | Seven Sepolia observations under one continuity proof | 982,017 gas | CC3 receipt `0x6fad658a...` |
-| Three mainnet observations under one continuity proof | 703,124 gas | CC3 receipt `0xb009222f...` |
+| Three mainnet observations, two source transactions, one continuity proof | 703,124 gas | CC3 receipt `0xb009222f...` |
+| Three mainnet observations, one source transaction | 276,066 gas | CC3 receipt `0xf34bfd...`, 2026-09-13 |
 | Mainnet stETH probe measured model | 89,292 gas limit; 57,134 used | source receipt `0x7256839a...` |
 
 These receipts are the live batching evidence. The source-side measured model reserves
@@ -167,7 +170,7 @@ it. Here is why that matters, taken from the live deployment rather than a test:
 | Sepolia block 11,691,162 timestamp | 1789243932 | source-chain read time |
 | `sourceTimestamp` in the proven observation | 1789243932 | exact match |
 | `recordedAt`, Creditcoin's own clock | 1789246170 | proof landing time |
-| Gap | **2,238 seconds** | proof accounting gap |
+| Gap | **2,238 seconds** | this sample, Sepolia block 11,691,162; an earlier sample in `SECURITY.md` measured 558 seconds — the gap is the attestation lag plus however long the prover waited |
 
 A Chainlink-shaped consumer computes age as `block.timestamp - updatedAt`. Had `updatedAt`
 carried Creditcoin's clock, the value would have looked younger than it was by the
@@ -228,8 +231,9 @@ Compound-style selector for tokens such as UNI and COMP.
 |---|---|---|
 | Seven source reads in one `probeMany` | Sepolia | 129,311 gas, tx `0x4a8cff...` |
 | Seven verified observations in one `submitBatch` | CC3 testnet | 982,017 gas, tx `0x6fad658a...` |
-| Three mainnet source reads in one `probeMany` | Ethereum mainnet | 99,139 gas, tx `0xf701eb...` |
-| Three verified observations in one `submitBatch` | CC3 testnet | 703,124 gas, tx `0xb009222f...` |
+| Three mainnet source reads in one `probeMany` | Ethereum mainnet | 143,660 gas, tx `0x2e0728...` |
+| Three verified observations from two source transactions in one `submitBatch` | CC3 testnet | 703,124 gas, tx `0xb009222f...` |
+| Three verified observations from one source transaction in one `submitProof` | CC3 testnet | 276,066 gas, tx `0xf34bfd...` |
 
 The shared continuity proof is paid once per batch. The source prober's measured gas model
 also reserves the wrapper baseline and each target's estimate; it does not hide pallet-EVM
@@ -255,7 +259,7 @@ same primary, fallback and local-builder chain used by the batch path.
 | Ethereum Sepolia | [`0x3da6ad…c92a6`](https://sepolia.etherscan.io/tx/0x3da6ad40d01ed65bdffadbd408e33e8935a26ca4daf7f2d28e1ef8208dbc92a6) | 11,692,212 | [`0x8cd83b…565f`](https://creditcoin-testnet.blockscout.com/tx/0x8cd83bfb71e45b70ed247d272ce89b980ffc3bf8f46a5cd50c5cb47cd68c565f) | 5,477,768 | 348,101 | 7/7 byte-equal |
 
 The mainnet refresh included the stETH exchange rate (1.243869391 ETH/stETH), ENS
-`totalSupply()` (100,000,000 ENS), and Uniswap's dynamic tick-cumulative array
+`getPastTotalSupply(25948230)` (100,000,000 ENS), and Uniswap's dynamic tick-cumulative array
 (`33553776709271`, `33554133078311`). The Sepolia refresh included WETH total supply
 (218,020.975 WETH), Aave WETH backing (12,071.334), aWETH issued (12,071.222), the
 checkpointed voting weight (1,000,000 LVOTE), Chainlink ETH/USD ($2,524.13), and both
@@ -267,7 +271,7 @@ at the proven source height.
 The immutable graph has now been redeployed and exercised end-to-end. The status below is a
 release audit, not a claim that the remaining measurement work is complete.
 
-| Open gate | Current status |
+| Check | Current status |
 |---|---|
 | Deployment parity | Green: `check-deployed` matches all ten current deployments to checked-in bytecode. |
 | Live operation | Green sample: `doctor` reports 0 failures across ten feeds and one low mainnet balance warning. |

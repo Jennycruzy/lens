@@ -19,8 +19,9 @@ Run 2026-09-10 against Ethereum mainnet (chain key 3 on CC3 testnet), 5/5 passin
 | Liquid-staking rate | stETH `getPooledEthByShares(1e18)` | 1.243714506052480615 | yes |
 | A read that fails | USDC, a function it does not have | recorded as failed, empty revert data | n/a |
 
-Three of those feeds in a single source transaction cost **155,260 gas**, which is the
-number that makes batching worth doing: one transaction, one block, one continuity proof
+Three of those feeds in a single source transaction cost **155,260 gas** in the fork test
+(the live mainnet batch of stETH, ENS and Uniswap measured 143,660, see `LATENCY.md`),
+which is the number that makes batching worth doing: one transaction, one block, one continuity proof
 on the Creditcoin side.
 
 ## Why these reads and not a spot price

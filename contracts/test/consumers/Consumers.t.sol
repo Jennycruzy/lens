@@ -463,7 +463,7 @@ contract SnapshotProverTest is ConsumerRig {
         (, uint256 paid) = prover.claim(campaign);
         assertGt(paid, 0, "bob claimed without the organiser naming him");
 
-        // The organiser cannot prevent it: nothing they control gates the claim.
+        // The organiser cannot prevent it: nothing they control stands between a holder and the claim.
         assertEq(prover.campaignOf(campaign).organiser, organiser);
     }
 

@@ -193,6 +193,6 @@ contract FreshnessArithmeticTest is Test {
         (bool ok,, uint256 age) = feed.tryRead();
 
         assertEq(age, expected, "age is a difference or the regression sentinel");
-        assertEq(ok, !regressed && expected <= maxAge, "regression and age jointly gate the read");
+        assertEq(ok, !regressed && expected <= maxAge, "regression and age jointly decide the read");
     }
 }

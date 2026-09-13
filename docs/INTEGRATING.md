@@ -1,14 +1,21 @@
 # Integrating
 
-## Five lines
+## A consumer in a few lines
 
 ```solidity
 import {LensConsumer} from "lens/contracts/src/LensConsumer.sol";
+import {LensRegistry} from "lens/contracts/src/LensRegistry.sol";
 
 contract YourContract is LensConsumer {
-    constructor(LensRegistry lens) LensConsumer(lens) {}
+    uint64 private immutable SOURCE_KEY;
 
-    function _defaultChainKey() internal view override returns (uint64) { return 1; }
+    constructor(LensRegistry lens, uint64 sourceKey) LensConsumer(lens) {
+        SOURCE_KEY = sourceKey;
+    }
+
+    function _defaultChainKey() internal view override returns (uint64) {
+        return SOURCE_KEY;
+    }
 
     function reserves(bytes32 feedId) external view returns (uint256) {
         return _latestUint(feedId, 300);   // refuses if older than 300 source blocks
@@ -19,10 +26,19 @@ contract YourContract is LensConsumer {
 Every read carries a freshness bound and there is no version that does not. A function
 returning a value without one would be used, and it would defeat the design in a line.
 
-## Already written against Chainlink? Change one address.
+**Resolve `sourceKey` from Creditcoin's ChainInfo for the environment you deploy to, at
+deployment time.** Chain keys are local to one Attestcoin environment: Ethereum mainnet is
+key 3 on CC3 testnet and key 1 on CC3 mainnet, where key 1 on testnet is Sepolia. Never
+copy a key from another environment or from an example. The registry itself resolves and
+asserts its keys at construction (`LensRegistry.sourceOf(key)` returns the native chain
+id it was bound to), and `templates/create-lens-feed` scaffolds a consumer with the key
+looked up for you.
 
-`LensAggregatorV3` implements `AggregatorV3Interface`. A lending market, perp or vault
-written against Chainlink runs against Lens unmodified:
+## Already written against `AggregatorV3Interface`?
+
+`LensAggregatorV3` exposes one Lens feed through the familiar `AggregatorV3Interface`, so
+a contract already written against that interface can consume slow-moving or
+time-averaged cross-chain state with minimal integration work:
 
 ```solidity
 AggregatorV3Interface feed = AggregatorV3Interface(LENS_AGGREGATOR);
@@ -41,15 +57,21 @@ Two deliberate differences from Chainlink, both toward safety:
 `updatedAt` is the **source chain's** clock. Your staleness check therefore measures the
 real age of the number, not how recently it happened to arrive on Creditcoin.
 
+**What this is not for.** The value arrives minutes after the source block, so the adapter
+is for feeds whose meaning survives that lag: exchange rates, reserves, time-averaged
+inputs, checkpointed state. It is not intended for block-sensitive spot pricing, perp
+marks or fast liquidation engines, and a feed carried from Chainlink keeps Chainlink's own
+trust assumptions — Lens removes the need for a trusted cross-chain reporter, nothing more.
+
 ## From JavaScript
 
 ```js
-import { Lens } from '@lens/sdk';
+import { Lens } from '@jennycruzy/lens-sdk';
 const lens = new Lens(CREDITCOIN_RPC, REGISTRY);
 
-const price = await lens.readValue(
-  11155111,                    // native chain id — never a chain key
-  AGGREGATOR, 'latestAnswer() returns (int256)', [], 600,
+const rate = await lens.readValue(
+  1,                           // native chain id — never a chain key
+  STETH, 'getPooledEthByShares(uint256) returns (uint256)', ['1000000000000000000'], 2400,
 );
 ```
 

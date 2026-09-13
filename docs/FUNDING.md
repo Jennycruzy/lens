@@ -55,8 +55,9 @@ About 0.1 SepoliaETH is plenty: it covers deploying the probe and a long run of 
 Not needed for anything to work. It buys the part of the demo that cannot be argued
 with: live mainnet values on a Creditcoin testnet deployment.
 
-Reads are cheap. Three real feeds in one transaction measured **155,260 gas**, so at 10
-gwei a batch costs on the order of 0.0016 ETH. A few hundredths of an ETH funds a long
+Reads are cheap. Three real feeds in one transaction measured **143,660 gas** on mainnet
+(tx `0x2e0728…`, 2026-09-13; the fork test estimates 155,260 for a different set of three),
+so at 10 gwei a batch costs on the order of 0.0015 ETH. A few hundredths of an ETH funds a long
 demonstration. The prober refuses to send above a configured gas-price ceiling and
 queues instead, so a spike cannot quietly drain the key.
 

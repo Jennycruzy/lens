@@ -78,7 +78,8 @@ value sits. Never wall-clock, never a Creditcoin height. When a source-chain reo
 
 `updatedAt` on the Chainlink adapter is the **source chain's** clock, never Creditcoin's.
 They are minutes apart because the attestation lag sits between them; on the live
-deployment the gap measured **558 seconds**.
+deployment the gap measured **558 seconds** in one sample and **2,238 seconds** in another
+(`EVIDENCE.md`); it is the attestation lag plus however long the prover waited to submit.
 
 A Chainlink-shaped consumer computes age as `block.timestamp - updatedAt` and liquidates
 on the result. Reporting the moment the proof landed would make every price look nine

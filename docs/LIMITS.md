@@ -59,10 +59,11 @@ it is not deployed. The capability is real and the tests exercise it.
 
 ## Coverage is not uniform
 
-**95.01% of lines** (704/741), 89.94% of statements and 61.90% of branches across `contracts/src`; 200 tests pass.
+**95.01% of lines** (704/741), 89.94% of statements and 61.90% of branches across
+`contracts/src`, from `npm run coverage` on 2026-09-13; 200 tests pass.
 
-The two probes read around 52%, which understates them: their read paths are inline
-assembly, which the coverage instrument cannot see. They are covered by unit tests, fork
+`StateProbe` reads around 52% of lines, which understates it: its read path is inline
+assembly, which the coverage instrument cannot see. It is covered by unit tests, fork
 tests against real mainnet contracts, and every end-to-end run.
 
 ## No symbolic proofs

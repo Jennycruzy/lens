@@ -7,7 +7,7 @@
  * documentation is checked for code on the chain it is claimed to be on, every
  * transaction hash is checked for existence and success, and the values quoted for the
  * live feeds are re-read rather than trusted. Exits non-zero if any claim fails, so it
- * can gate a commit.
+ * can block a commit.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { JsonRpcProvider, Contract, Interface } from 'ethers';

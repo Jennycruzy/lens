@@ -50,11 +50,14 @@ unattended keeper cycle: probed at 19:51:40, all five feeds proved and byte-equa
 | `probe`, one feed | 29,380 |
 | `probeMany`, three feeds | 87,028 |
 | `probeMany`, five feeds | ~53,000–140,000 depending on returndata size |
-| Three real mainnet feeds, one transaction | 140,169 |
+| Three real mainnet feeds, one transaction (stETH, ENS, Uniswap; tx `0x2e0728…`, 2026-09-13) | 143,660 |
+| Two real mainnet feeds, one transaction (ENS, Uniswap; tx `0xf701eb…`, 2026-09-12) | 99,139 |
 | `StateProbe` deployment | 385,849 |
 
 At Ethereum mainnet's 0.06 gwei, the probe deployment cost **0.0000159 ETH (~$0.04)** and
-a three-feed batch about **$0.02**.
+a three-feed batch about **$0.02**. The `probe` and three-feed `probeMany` rows above the
+mainnet ones are Sepolia measurements from the first deployment; the mainnet rows carry
+their receipts and dates because the two runs differ and are not averaged.
 
 ### On Creditcoin
 

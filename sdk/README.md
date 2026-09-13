@@ -1,23 +1,29 @@
-# @lens/sdk
+# @jennycruzy/lens-sdk
 
 Read verified cross-chain state from Lens on Creditcoin.
 
 ```js
-import { Lens } from '@lens/sdk';
+import { Lens } from '@jennycruzy/lens-sdk';
 
 const lens = new Lens('https://rpc.cc3-testnet.creditcoin.network', REGISTRY_ADDRESS);
 
-// A value read on Ethereum Sepolia, proven to Creditcoin.
-const price = await lens.readValue(
-  11155111,                                       // native chain id, never a chain key
-  '0x694AA1769357215DE4FAC081bf1f309aDC325306',
-  'latestAnswer() returns (int256)',
-  [],
-  600,                                            // largest acceptable age, in source blocks
+// The stETH exchange rate, read on Ethereum mainnet and proven to Creditcoin.
+const rate = await lens.readValue(
+  1,                                              // native chain id, never a chain key
+  '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
+  'getPooledEthByShares(uint256) returns (uint256)',
+  ['1000000000000000000'],
+  2400,                                           // largest acceptable age, in source blocks
 );
 ```
 
 ## Two things worth knowing
+
+```
+npm install @jennycruzy/lens-sdk ethers
+```
+
+The registry address for CC3 testnet is in `deployments.json` at the repository root.
 
 **Chain keys are environment-local.** The same integer means different chains on
 different Attestcoin environments: Ethereum mainnet is key 3 on CC3 testnet and key 1 on
@@ -48,6 +54,15 @@ the largest age you can tolerate; anything older is refused.
 const { verified, onLens, onSource, atHeight } = await lens.verify(
   11155111, target, callData, 'https://ethereum-sepolia-rpc.publicnode.com',
 );
+```
+
+The four steps, end to end:
+
+```js
+const lens = new Lens(CREDITCOIN_RPC, REGISTRY);              // 1. construct
+const r = await lens.read(1, target, callData, 2400);         // 2. read: { ok, data, age } or { ok: false, refusal }
+if (!r.ok) console.log(r.refusal);                            // 3. an explicit refusal, never a guess
+const check = await lens.verify(1, target, callData, ARCHIVE_RPC); // 4. compare the bytes yourself
 ```
 
 Calls the same contract with the same calldata on the source chain, at the exact height

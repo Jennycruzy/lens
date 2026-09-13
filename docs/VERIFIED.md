@@ -219,7 +219,7 @@ Measured against the live network, in order of when they block work:
 
 | Question | Answer |
 |---|---|
-| Largest returndata that survives the proof path | **At least 288 bytes**, measured: a Uniswap `observe([1800,0])` returning two dynamic arrays came back byte-equal through probe, proof, decode and storage. The probe caps at 8,192 bytes and flags anything longer as truncated, so the ceiling is a policy rather than a discovered limit. See `SPIKE.md`. |
+| Largest returndata that survives the proof path | **At least 256 bytes**, measured: a Uniswap `observe([1800,0])` returning two dynamic arrays came back byte-equal through probe, proof, decode and storage. The probe caps at 8,192 bytes and flags anything longer as truncated, so the ceiling is a policy rather than a discovered limit. See `SPIKE.md`. |
 | Log index numbering in the decoder | **Per transaction.** `EvmV1Decoder.ReceiptFields` carries `LogEntry[] receiptLogs` scoped to the one decoded transaction, and `getLogsByEventSignature` filters within it. The registry never needs a block-wide index. |
 | Sourcify support for CC3 testnet | **Supported.** `sourcify.dev/server/chains` lists chainId 102031 as `supported: true`. Blockscout verification is done for all eleven deployed CC3 contracts and both source probes; Sourcify full matches are confirmed for all thirteen. |
 | Proof builder batch endpoint | `/api/v1/proof-batch-by-tx/{chainKey}`, POST, body is a **bare array** of hashes. Taken from the SDK's client rather than guessed; three guessed paths returned 404 first. |
