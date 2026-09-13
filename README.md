@@ -5,7 +5,7 @@
 Creditcoin can prove that an Ethereum transaction happened.
 Lens lets it verify what an Ethereum contract returned.
 
-**Live explorer:** <https://lens.54-154-121-30.sslip.io> · mirror: <https://jennycruzy.github.io/lens/>
+**Live explorer:** <https://lens.54-154-121-30.sslip.io>
 · CC3 testnet · Ethereum mainnet and Sepolia sources · 200 Foundry tests · MIT
 
 Attestcoin proves transaction inclusion and events. Many cross-chain questions are not
