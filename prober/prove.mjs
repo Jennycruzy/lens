@@ -78,39 +78,55 @@ await waitUntilProvable();
  * completely different things. Collapsing them is how a transient outage gets recorded
  * as "that transaction does not exist" and an update is silently dropped.
  */
-async function getProof() {
-  const hosts = proofBuilderHosts();
-  const failures = [];
-  for (const host of hosts) {
-    const url = `${host}/api/v1/proof-by-tx/${chainKey}/${txHash}`;
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
-      if (res.ok) {
-        console.log(`  proof from ${host}`);
-        return await res.json();
+// A source block can be attested before the hosted builder has indexed it. Treat
+// that response as transient and retry the complete failover chain. A single
+// proof attempt must have the same liveness guarantees as the batch path.
+async function getProofWithRetry() {
+  const deadline = Date.now() + 20 * 60 * 1000;
+  for (;;) {
+    const failures = [];
+    let retryable = false;
+    for (const host of proofBuilderHosts()) {
+      const url = `${host}/api/v1/proof-by-tx/${chainKey}/${txHash}`;
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+        if (res.ok) {
+          console.log(`  proof from ${host}`);
+          return await res.json();
+        }
+        const raw = await res.text();
+        const detail = raw.slice(0, 120);
+        let body;
+        try { body = JSON.parse(raw); } catch {}
+        const kind = res.status === 404 ? 'not-found' : res.status === 422 ? 'unprocessable' : 'http';
+        if (res.status === 422 && (body?.retriable === true || body?.code === 'BlockNotReady')) retryable = true;
+        failures.push(`${host} -> ${kind} (HTTP ${res.status}) ${detail}`);
+      } catch (e) {
+        failures.push(`${host} -> unreachable: ${e.message}`);
       }
-      const detail = (await res.text()).slice(0, 120);
-      const kind = res.status === 404 ? 'not-found' : res.status === 422 ? 'unprocessable' : 'http';
-      failures.push(`${host} -> ${kind} (HTTP ${res.status}) ${detail}`);
-    } catch (e) {
-      failures.push(`${host} -> unreachable: ${e.message}`);
     }
-  }
-  try {
-    const local = await localProofBuilder(chainId, chainKey).getProof(txHash);
-    if (local.success) {
-      console.log('  proof from local SDK raw builder');
-      return local.data;
-    }
-    failures.push('local-sdk -> ' + (local.error ?? 'unknown error'));
-  } catch (e) {
-    failures.push('local-sdk -> unreachable: ' + e.message);
-  }
 
-  throw new Error('no builder produced a proof:\n    ' + failures.join('\n    '));
+    try {
+      const local = await localProofBuilder(chainId, chainKey).getProof(txHash);
+      if (local.success) {
+        console.log('  proof from local SDK raw builder');
+        return local.data;
+      }
+      const localError = local.error ?? 'unknown error';
+      if (/BlockNotReady|not ready|not indexed|attest/i.test(localError)) retryable = true;
+      failures.push('local-sdk -> ' + localError);
+    } catch (e) {
+      failures.push('local-sdk -> unreachable: ' + e.message);
+    }
+
+    if (!retryable) throw new Error('no builder produced a proof:\n    ' + failures.join('\n    '));
+    if (Date.now() > deadline) throw new Error('timed out waiting for the proof builder after a retriable response');
+    console.log('  proof builder is catching up; retrying the failover chain in 30 seconds');
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
 }
 
-const proof = await getProof();
+const proof = await getProofWithRetry();
 const body = proof.data ?? proof;
 const { txBytes, merkleProof, continuityProof } = body;
 if (!txBytes || !merkleProof || !continuityProof) {

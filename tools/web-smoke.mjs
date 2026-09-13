@@ -37,6 +37,8 @@ const freshnessInterface = new Interface([
 const freshnessSelectors = Object.fromEntries(
   ['FeedUnavailable', 'FeedStale'].map((name) => [freshnessInterface.getError(name).selector.toLowerCase(), name]),
 );
+const marketInterface = new Interface(['error StalePrice(uint256,uint256)']);
+freshnessSelectors[marketInterface.getError('StalePrice').selector.toLowerCase()] = 'StalePrice';
 // The currently documented consumer address predates the hardened ABI and returns its
 // older fail-closed error. Keep that refusal visible rather than calling it a healthy value.
 freshnessSelectors['0xbad04e0e'] = 'CannotDetermineSolvency (legacy deployment)';

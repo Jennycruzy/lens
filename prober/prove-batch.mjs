@@ -11,7 +11,7 @@
  * chain can span, which is why the builder is asked for a batch rather than for each
  * proof separately.
  */
-import { Contract } from 'ethers';
+import { Contract, keccak256 } from 'ethers';
 import {
   env, chainKeyFor, sourceProvider, creditcoin, creditcoinWallet, registryContract,
   computeFeedId, callDataFor, decodeFor, feeds, sources, CHAIN_INFO, probeContract,
@@ -46,7 +46,24 @@ const probe = probeContract(chainId);
 const eventsFrom = (receipt) => receipt.logs.map((log) => {
   try { const parsed = probe.interface.parseLog(log); return parsed?.name === 'Probed' ? parsed : null; } catch { return null; }
 }).filter(Boolean);
-const expectedEvents = receipts.flatMap((receipt) => eventsFrom(receipt).map((event) => ({ receiptHash: receipt.hash.toLowerCase(), height: receipt.blockNumber, target: event.args.target, callHash: event.args.callHash, success: event.args.success, truncated: event.args.truncated, returnData: event.args.returnData })));
+const feedForSourceEvent = (event) => feeds.find(
+  (feed) => feed.chainId === chainId
+    && feed.target.toLowerCase() === event.args.target.toLowerCase()
+    && keccak256(callDataFor(feed)).toLowerCase() === event.args.callHash.toLowerCase(),
+);
+const expectedEvents = receipts.flatMap((receipt) => eventsFrom(receipt).map((event) => {
+  const feed = feedForSourceEvent(event);
+  return {
+    receiptHash: receipt.hash.toLowerCase(),
+    height: receipt.blockNumber,
+    target: event.args.target,
+    callHash: event.args.callHash,
+    success: event.args.success,
+    truncated: event.args.truncated,
+    returnData: event.args.returnData,
+    feed,
+  };
+}));
 if (expectedEvents.length === 0) throw new Error('source transactions contain no Probed events');
 const highest = receipts[receipts.length - 1].blockNumber;
 
@@ -78,45 +95,59 @@ for (;;) {
 // that do not share an anchor, which is the thing being amortised.
 // Path and body shape taken from the SDK's own client, not guessed: the hashes go as a
 // bare array rather than wrapped in an object.
-const failures = [];
+const proofDeadline = Date.now() + 20 * 60 * 1000;
 let batch;
-for (const host of proofBuilderHosts()) {
-  try {
-    const response = await fetch(`${host}/api/v1/proof-batch-by-tx/${chainKey}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(uniqueHashes),
-      signal: AbortSignal.timeout(90000),
-    });
-    if (response.ok) {
-      batch = await response.json();
-      console.log(`  batch proof from ${host}`);
-      break;
+for (;;) {
+  const failures = [];
+  let retryable = false;
+  for (const host of proofBuilderHosts()) {
+    try {
+      const response = await fetch(`${host}/api/v1/proof-batch-by-tx/${chainKey}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(uniqueHashes),
+        signal: AbortSignal.timeout(90000),
+      });
+      if (response.ok) {
+        batch = await response.json();
+        console.log(`  batch proof from ${host}`);
+        break;
+      }
+      const raw = await response.text();
+      const detail = raw.slice(0, 200);
+      let body;
+      try { body = JSON.parse(raw); } catch {}
+      const kind = response.status === 404 ? 'not-found' : response.status === 422 ? 'unprocessable' : 'http';
+      if (response.status === 422 && (body?.retriable === true || body?.code === 'BlockNotReady')) retryable = true;
+      failures.push(`${host} -> ${kind} (HTTP ${response.status}) ${detail}`);
+    } catch (e) {
+      failures.push(`${host} -> unreachable: ${e.message}`);
     }
-    const detail = (await response.text()).slice(0, 200);
-    const kind = response.status === 404 ? 'not-found' : response.status === 422 ? 'unprocessable' : 'http';
-    failures.push(`${host} -> ${kind} (HTTP ${response.status}) ${detail}`);
-  } catch (e) {
-    failures.push(`${host} -> unreachable: ${e.message}`);
   }
-}
-if (!batch) {
-  try {
-    const local = await localProofBuilder(chainId, chainKey).getBatchProof(uniqueHashes);
-    if (local.success) {
-      batch = { data: local.data };
-      console.log('  batch proof from local SDK raw builder');
-    } else {
-      failures.push('local-sdk -> ' + (local.error ?? 'unknown error'));
+
+  if (!batch) {
+    try {
+      const local = await localProofBuilder(chainId, chainKey).getBatchProof(uniqueHashes);
+      if (local.success) {
+        batch = { data: local.data };
+        console.log('  batch proof from local SDK raw builder');
+      } else {
+        failures.push('local-sdk -> ' + (local.error ?? 'unknown error'));
+      }
+    } catch (e) {
+      failures.push('local-sdk -> unreachable: ' + e.message);
     }
-  } catch (e) {
-    failures.push('local-sdk -> unreachable: ' + e.message);
   }
-}
-if (!batch) {
-  console.error('\n  no builder produced a batch proof:');
-  console.error('    ' + failures.join('\n    '));
-  process.exit(1);
+
+  if (batch) break;
+  if (!retryable) {
+    console.error('\n  no builder produced a batch proof:');
+    console.error('    ' + failures.join('\n    '));
+    process.exit(1);
+  }
+  if (Date.now() > proofDeadline) throw new Error('timed out waiting for the proof builder after a retriable response');
+  console.log('  proof builder is catching up; retrying the retriable response in 30 seconds');
+  await new Promise((resolve) => setTimeout(resolve, 30000));
 }
 
 const body = batch.data ?? batch;
@@ -214,12 +245,12 @@ const matched = new Set();
 for (const event of recordedEvents) {
   const feedId = event.args.feedId;
   const probeHeight = Number(event.args.probeHeight);
-  const index = expectedEvents.findIndex((expected, i) => !matched.has(i) && expected.height === probeHeight && expected.target.toLowerCase() === event.args.target.toLowerCase() && computeFeedId(chainKey, expected.target, expected.callHash) === feedId);
+  const index = expectedEvents.findIndex((expected, i) => !matched.has(i) && expected.height === probeHeight && expected.target.toLowerCase() === event.args.target.toLowerCase() && expected.feed && computeFeedId(chainKey, expected.feed.target, callDataFor(expected.feed)) === feedId);
   if (index < 0) { console.error('    registry event does not match a requested source event'); mismatch = true; continue; }
   matched.add(index);
   const expected = expectedEvents[index];
   if (event.args.callSucceeded !== expected.success || event.args.returnData.toLowerCase() !== expected.returnData.toLowerCase()) { console.error('    registry event bytes/status differ from source Probed event'); mismatch = true; continue; }
-  const feed = feeds.find((candidate) => candidate.chainId === chainId && computeFeedId(chainKey, candidate.target, callDataFor(candidate)) === feedId);
+  const feed = expected.feed;
   if (!feed) { console.error('    no local feed matches ' + feedId); mismatch = true; continue; }
   if (!expected.success || expected.truncated) { console.log('    source call failed or returndata was truncated; no value comparison attempted'); continue; }
   try {

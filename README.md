@@ -24,15 +24,17 @@ No protocol change. No trusted party. No incentive assumption on correctness.
 
 | Contract | Chain | Address |
 |---|---|---|
-| `LensRegistry` | Creditcoin CC3 testnet | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://creditcoin-testnet.blockscout.com/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) |
-| `LensAggregatorV3` | Creditcoin CC3 testnet | [`0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5`](https://creditcoin-testnet.blockscout.com/address/0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5) |
+| `LensRegistry` | Creditcoin CC3 testnet | [`0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907`](https://creditcoin-testnet.blockscout.com/address/0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907) |
+| `LensAggregatorV3` | Creditcoin CC3 testnet | [`0x134dbefE46b803ADab301D3c85f33E82a16A3993`](https://creditcoin-testnet.blockscout.com/address/0x134dbefE46b803ADab301D3c85f33E82a16A3993) |
 | `ReserveMonitor` · `LensMarket` · `VotePort` · `SnapshotProver` | Creditcoin CC3 testnet | see [`docs/EVIDENCE.md`](docs/EVIDENCE.md) |
 | `CircuitBreaker` · `FeedEscrow` | Creditcoin CC3 testnet | see [`docs/EVIDENCE.md`](docs/EVIDENCE.md) |
-| `StateProbe` | Ethereum Sepolia **and** mainnet | [`0xC335466ffcac94fCe7820326930888dAA9204a23`](https://etherscan.io/address/0xC335466ffcac94fCe7820326930888dAA9204a23) |
+| `StateProbe` | Ethereum Sepolia (chain key 1) | [`0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115`](https://sepolia.etherscan.io/address/0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115) |
+| `StateProbe` | Ethereum mainnet (chain key 3) | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://etherscan.io/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) |
 
-Every Creditcoin contract is verified on Blockscout. The probe has the same address on
-both source chains because it is deployed through the standard deterministic deployer, so
-its address is a property of its bytecode rather than of who deployed it.
+Every current deployment matches the checked-in bytecode; the exact parity command and
+source-verification status are recorded in [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
+The source probes are separately deployed on Sepolia and mainnet, so their addresses are
+chain-specific facts rather than a deterministic-address claim.
 
 **CC3 testnet attests Ethereum mainnet** — chain key 3, confirmed at runtime. A testnet
 deployment reading real mainnet state is the point, not a workaround.
@@ -48,7 +50,7 @@ node tools/differential.mjs      # every value held, against the source that pro
 Or without cloning anything:
 
 ```
-cast call 0x81b6DcbcE28EC0634DC905cfDc5eA84005915852 'frontierOf(uint64)(uint64)' 3 \
+cast call 0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907 'frontierOf(uint64)(uint64)' 3 \
   --rpc-url https://rpc.cc3-testnet.creditcoin.network
 ```
 
@@ -95,7 +97,7 @@ technique; and the composition layer.
 ## Tests
 
 ```
-forge test          # 184 tests
+forge test          # 191 tests
 node tools/differential.mjs
 ```
 

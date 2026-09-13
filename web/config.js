@@ -6,14 +6,14 @@
 window.LENS = {
   creditcoinRpc: 'https://rpc.cc3-testnet.creditcoin.network',
   explorer: 'https://creditcoin-testnet.blockscout.com',
-  registry: '0x81b6DcbcE28EC0634DC905cfDc5eA84005915852',
-  aggregator: '0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5',
-  reserveMonitor: '0xD51bEE1d6b2f013d907D3e13e570b2b6586e0c72',
-  market: '0xEE527a62C239E4664e887c0e248eAc741E0EF9EF',
-  votePort: '0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115',
-  snapshotProver: '0xaef8215c3048687Cf3d0346cB9FcB1BE67c12647',
-  breaker: '0xf219a37884B5314dD5057d0C4051aa0349907066',
-  escrow: '0x4f6b5262221a6fBDE2126174577f4E9956ddFa04',
+  registry: '0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907',
+  aggregator: '0x134dbefE46b803ADab301D3c85f33E82a16A3993',
+  reserveMonitor: '0xB40692dD5077B4b2e5A75AccF4F610bac8b9C288',
+  market: '0x4d983eD19F7b1dDae5b5B2D2C00dD481ea581DAe',
+  votePort: '0xe43E5484Da58762800e7f495076658586295ccD0',
+  snapshotProver: '0xc722549aCe290e165C76F32d76f5bab40dBe6Df8',
+  breaker: '0x9ddC59f0F9b434B74A9ceB015Ee1c6861BbEc936',
+  escrow: '0x4bab50d47E054E32C91F19E4E30027422061f636',
 
   // Source chains, keyed by native chain id. Chain keys are resolved at runtime from the
   // precompile and never written down: the same integer means a different chain on a

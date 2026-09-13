@@ -13,8 +13,8 @@ recorded first because it was done first.
 | Source chain | Ethereum mainnet — chain key **3** on CC3 testnet |
 | Target | `0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640`, the USDC/WETH 0.05% pool |
 | Call | `observe([1800, 0])` — a 30-minute time-weighted observation |
-| Source block | 25,949,269 |
-| Probe transaction | [`0x328ecec676aef660e30bb878353f7d3a10bfde5288377892378943abe68f40c7`](https://etherscan.io/tx/0x328ecec676aef660e30bb878353f7d3a10bfde5288377892378943abe68f40c7) |
+| Source block | 25,963,759 |
+| Probe transaction | [`0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977`](https://etherscan.io/tx/0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977) |
 | Returndata | **288 bytes**, two dynamic arrays |
 | Result | byte-equal to a direct `eth_call` at the same height |
 
@@ -52,14 +52,14 @@ built for rather than the class it cannot serve.
 
 ## What the first probe found
 
-The pre-flight comparison in the prober reported the TWAP as **not matching**, and it was
-the tool that was wrong, not Lens. `observe(…, 0)` is relative to the current block; the
-comparison read at block 25,949,267 and the probe executed at 25,949,269. Two blocks of
-legitimate movement, reported as a divergence.
+The current prober pins its direct read, then compares against the block in the emitted
+event. The fresh two-feed mainnet probe recorded the Uniswap observation with
+`success=true` and byte-equal returndata at block 25,963,759. Its measured gas model
+reserved a 38,365-gas wrapper baseline plus direct target estimates, avoiding the
+underestimate that can occur when a probe intentionally catches an inner revert.
 
-The comparison now re-reads at the block the probe actually ran in. Recorded because a
-feed whose value moves every block is exactly the case a fixed-value feed would never have
-exposed — every earlier feed had passed.
+The comparison re-reads at the block the probe actually ran in. A feed whose value moves
+every block is exactly the case a fixed-value feed would never have exposed.
 
 ## Reproducing it
 

@@ -152,14 +152,19 @@ if (addresses.aggregator) {
   } catch (e) {
     const staleError = new Interface(['error FeedStale(bytes32,uint256,uint256)']);
     const data = e.data ?? e.info?.error?.data ?? e.error?.data;
-    let stale = false;
+    let refusal = null;
     if (typeof data === 'string') {
-      try { stale = staleError.parseError(data)?.name === 'FeedStale'; } catch {}
+      try { refusal = staleError.parseError(data)?.name ?? null; } catch {}
+      if (!refusal) {
+        const selector = data.slice(0, 10).toLowerCase();
+        refusal = selector === '0x62590144' ? 'FeedUnavailable' : null;
+      }
     }
+    const failedClosed = ['FeedStale', 'FeedUnavailable'].includes(refusal);
     check(
-      stale ? 'aggregator refuses a stale observation' : 'aggregator readable',
-      stale,
-      stale ? `the adapter failed closed with FeedStale (${data.slice(0, 14)}…)` : e.shortMessage ?? e.message,
+      failedClosed ? `aggregator refuses a ${refusal} observation` : 'aggregator readable',
+      failedClosed,
+      failedClosed ? `the adapter failed closed with ${refusal} (${data?.slice(0, 14) ?? 'no data'}…)` : e.shortMessage ?? e.message,
     );
   }
 }

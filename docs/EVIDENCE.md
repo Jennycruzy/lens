@@ -7,16 +7,16 @@ plan; each row is on a public chain and can be checked without asking us.
 
 | What | Chain | Address | Status |
 |---|---|---|---|
-| `StateProbe` | Ethereum Sepolia (chain key 1) | [`0xC335466ffcac94fCe7820326930888dAA9204a23`](https://sepolia.etherscan.io/address/0xC335466ffcac94fCe7820326930888dAA9204a23) | current |
-| `StateProbe` | Ethereum mainnet (chain key 3) | `0xC335466ffcac94fCe7820326930888dAA9204a23` | same address, awaiting funding |
-| `LensRegistry` | Creditcoin CC3 testnet | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://creditcoin-testnet.blockscout.com/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) | current |
-| `LensAggregatorV3`, ETH/USD | Creditcoin CC3 testnet | [`0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5`](https://creditcoin-testnet.blockscout.com/address/0x43E5d502Fa15bE5ef70799B629718fb4CF490fF5) | current |
-| `ReserveMonitor` | Creditcoin CC3 testnet | `0xD51bEE1d6b2f013d907D3e13e570b2b6586e0c72` | current |
-| `LensMarket` | Creditcoin CC3 testnet | `0xEE527a62C239E4664e887c0e248eAc741E0EF9EF` | current |
-| `VotePort` | Creditcoin CC3 testnet | `0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115` | current |
-| `SnapshotProver` | Creditcoin CC3 testnet | `0xaef8215c3048687Cf3d0346cB9FcB1BE67c12647` | current |
-| `CircuitBreaker` | Creditcoin CC3 testnet | `0xf219a37884B5314dD5057d0C4051aa0349907066` | current |
-| `FeedEscrow` | Creditcoin CC3 testnet | `0x4f6b5262221a6fBDE2126174577f4E9956ddFa04` | current |
+| `StateProbe` | Ethereum Sepolia (chain key 1) | [`0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115`](https://sepolia.etherscan.io/address/0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115) | current |
+| `StateProbe` | Ethereum mainnet (chain key 3) | [`0x81b6DcbcE28EC0634DC905cfDc5eA84005915852`](https://etherscan.io/address/0x81b6DcbcE28EC0634DC905cfDc5eA84005915852) | current |
+| `LensRegistry` | Creditcoin CC3 testnet | [`0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907`](https://creditcoin-testnet.blockscout.com/address/0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907) | current |
+| `LensAggregatorV3`, ETH/USD | Creditcoin CC3 testnet | [`0x134dbefE46b803ADab301D3c85f33E82a16A3993`](https://creditcoin-testnet.blockscout.com/address/0x134dbefE46b803ADab301D3c85f33E82a16A3993) | current |
+| `ReserveMonitor` | Creditcoin CC3 testnet | `0xB40692dD5077B4b2e5A75AccF4F610bac8b9C288` | current |
+| `LensMarket` | Creditcoin CC3 testnet | `0x4d983eD19F7b1dDae5b5B2D2C00dD481ea581DAe` | current |
+| `VotePort` | Creditcoin CC3 testnet | `0xe43E5484Da58762800e7f495076658586295ccD0` | current |
+| `SnapshotProver` | Creditcoin CC3 testnet | `0xc722549aCe290e165C76F32d76f5bab40dBe6Df8` | current |
+| `CircuitBreaker` | Creditcoin CC3 testnet | `0x9ddC59f0F9b434B74A9ceB015Ee1c6861BbEc936` | current |
+| `FeedEscrow` | Creditcoin CC3 testnet | `0x4bab50d47E054E32C91F19E4E30027422061f636` | current |
 | `LensVoteToken` | Ethereum Sepolia | `0x99E1749Fd45Bb14CF59139b04Cc387981f3ef66e` | a real ERC20Votes, see below |
 
 ### Superseded, and why
@@ -37,36 +37,36 @@ attestation lag sits between them. A Chainlink-shaped consumer comparing
 `block.timestamp - updatedAt` would have measured the wrong gap and believed the value
 fresher than it was. The probe now emits both clocks and the registry keeps them apart.
 
-The probe is deployed through the standard deterministic deployer with the salt
-`keccak256("lens.state-probe.v2")`, so its address is a property of its bytecode rather
-than of who deployed it or when. Anyone can verify the address without trusting us:
-
-```
-cast compute-address --create2 \
-  --salt $(cast keccak "lens.state-probe.v1") \
-  --init-code-hash <keccak of the current StateProbe creation code> \
-  0x4e59b44847b379578588920cA78FbF26c0B4956C
-```
-
-That also means the mainnet probe is already pinned: when the key is funded, the same
-bytecode lands at the same address, and the registry needs no change.
+The current source probes are ordinary deployments from the prober wallet, so their
+addresses are chain-specific facts. The registry stores the mainnet and Sepolia emitter
+separately and the live constructor read-back confirms both mappings. A new probe build
+is recorded with its source-chain deployment transaction before the registry is rebuilt.
 
 ### Transactions
 
 | What | Chain | Hash |
 |---|---|---|
-| `StateProbe` deployment | Sepolia | [`0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967`](https://sepolia.etherscan.io/tx/0x00534c2a78f3b7ec070aa9376ed9029ed50fa37a8a55ce2f3dffac1b9751d967) |
-| First probe, Sepolia WETH `totalSupply()` | Sepolia | [`0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f`](https://sepolia.etherscan.io/tx/0xe5124c2b39622e95399153908fc3f30b474e5a48d9f32ff54e014f97b2da6e7f) |
-| Two feeds probed in one transaction | Sepolia | [`0x29a8a7be2ff3cde02fd767771b09fc6e4ac2f5c1c4c6584f3b04251657946e0d`](https://sepolia.etherscan.io/tx/0x29a8a7be2ff3cde02fd767771b09fc6e4ac2f5c1c4c6584f3b04251657946e0d) |
-| Both proven in one submission | CC3 testnet | [`0x82653274dbb461627b6c5d96f6ba9d37681ce7a21145a4c5da7e9b95ce3c8f6d`](https://creditcoin-testnet.blockscout.com/tx/0x82653274dbb461627b6c5d96f6ba9d37681ce7a21145a4c5da7e9b95ce3c8f6d) |
-| That probe proven and recorded | CC3 testnet | [`0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668`](https://creditcoin-testnet.blockscout.com/tx/0xd9290d8dc006cead38f120e9edc5bd241d810dd412a79f92e16b37821ed22668) |
-| `LensRegistry` deployment, superseded | CC3 testnet | [`0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090`](https://creditcoin-testnet.blockscout.com/tx/0xece577fa31a23b930c69044c9f4ae16c4592eab1e72f0bce9f32026c47056090) |
-| `StateProbe` deployment, current | Sepolia | contract `0xC335466ffcac94fCe7820326930888dAA9204a23` |
-| `LensRegistry` deployment, current | CC3 testnet | [`0xf8cdec304aedc50478a4055ab4b0632721388387895b0fd5b88cc1761afc8293`](https://creditcoin-testnet.blockscout.com/tx/0xf8cdec304aedc50478a4055ab4b0632721388387895b0fd5b88cc1761afc8293) |
+| `StateProbe` deployment | Sepolia | [`0xf0a89d2f6694406d98510f400b2136a05f206d35863ff9a81e2e71d9c6b549ae`](https://sepolia.etherscan.io/tx/0xf0a89d2f6694406d98510f400b2136a05f206d35863ff9a81e2e71d9c6b549ae) |
+| `StateProbe` deployment | Ethereum mainnet | [`0xfbc6952c018ac1155797efc638433308de874f96902c4bd51cc47dc6453aebf3`](https://etherscan.io/tx/0xfbc6952c018ac1155797efc638433308de874f96902c4bd51cc47dc6453aebf3) |
+| Seven feeds probed in one transaction | Sepolia | [`0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd`](https://sepolia.etherscan.io/tx/0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd) |
+| Seven observations proven under one continuity proof | CC3 testnet | [`0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504`](https://creditcoin-testnet.blockscout.com/tx/0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504) |
+| Three mainnet feeds probed in one transaction | Ethereum mainnet | [`0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977`](https://etherscan.io/tx/0xf701eb273d6ea254c0aba772cba2cec4a43e971408a4b7e8df342f96f1734977) |
+| Three observations proven under one continuity proof | CC3 testnet | [`0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde`](https://creditcoin-testnet.blockscout.com/tx/0xb009222f40c89c837faf4bf61fcaaad8fd195bded8ae48a751487b21ac464cde) |
+| `LensRegistry` deployment, current | CC3 testnet | [`0x235b8baec382ef0d7e7e0d6a9d3ea9a984ad1fe33b6a59b757b09a7caeaad036`](https://creditcoin-testnet.blockscout.com/tx/0x235b8baec382ef0d7e7e0d6a9d3ea9a984ad1fe33b6a59b757b09a7caeaad036) |
+| `LensAggregatorV3` deployment, current | CC3 testnet | [`0x09ecabf2fd8dc3858f1f4e0354b1f55dce17f07bfd1169f9339390212ebf1964`](https://creditcoin-testnet.blockscout.com/tx/0x09ecabf2fd8dc3858f1f4e0354b1f55dce17f07bfd1169f9339390212ebf1964) |
+| `RegistryFeed` backing deployment | CC3 testnet | [`0xdc58aeb56b5e1b18b0570860e358f92f9578c84ad8a9bb774a053213f996c352`](https://creditcoin-testnet.blockscout.com/tx/0xdc58aeb56b5e1b18b0570860e358f92f9578c84ad8a9bb774a053213f996c352) |
+| `RegistryFeed` issued deployment | CC3 testnet | [`0x66bcab99f7c540a71325cfe089a256b6a7cc9829c2b86470f02df366d09e66c4`](https://creditcoin-testnet.blockscout.com/tx/0x66bcab99f7c540a71325cfe089a256b6a7cc9829c2b86470f02df366d09e66c4) |
+| `RatioFeed` deployment | CC3 testnet | [`0x483b817a82514e25b3eed6d2c5e5ead2abcdc97c1886862ee8e5b161cb4e0ed2`](https://creditcoin-testnet.blockscout.com/tx/0x483b817a82514e25b3eed6d2c5e5ead2abcdc97c1886862ee8e5b161cb4e0ed2) |
+| `ReserveMonitor` deployment | CC3 testnet | [`0x44478b5e14f27a0728ca1ec03f1ef064a72e14e191974f52472057de20c0fe31`](https://creditcoin-testnet.blockscout.com/tx/0x44478b5e14f27a0728ca1ec03f1ef064a72e14e191974f52472057de20c0fe31) |
+| `LensMarket` deployment | CC3 testnet | [`0x6a6eec66de368572ab756e576b86105cefea3c032fb90f9779e6810d3db7418e`](https://creditcoin-testnet.blockscout.com/tx/0x6a6eec66de368572ab756e576b86105cefea3c032fb90f9779e6810d3db7418e) |
+| `CircuitBreaker` deployment | CC3 testnet | [`0xf9cf8461e1990cefa85c2b90b34fd77892eaa7f098a36c1f48a3019969d2f884`](https://creditcoin-testnet.blockscout.com/tx/0xf9cf8461e1990cefa85c2b90b34fd77892eaa7f098a36c1f48a3019969d2f884) |
+| `FeedEscrow` deployment | CC3 testnet | [`0xc7c0def5fdf2ea014669b9255d16adf5aa306e1f7a77b83ea575176433337050`](https://creditcoin-testnet.blockscout.com/tx/0xc7c0def5fdf2ea014669b9255d16adf5aa306e1f7a77b83ea575176433337050) |
+| `VotePort` deployment | CC3 testnet | [`0xcd9d1ee636531ca7a6fe0e5e6ca6bc25fde7ce32fbb2136903430153cf2f560a`](https://creditcoin-testnet.blockscout.com/tx/0xcd9d1ee636531ca7a6fe0e5e6ca6bc25fde7ce32fbb2136903430153cf2f560a) |
+| `SnapshotProver` deployment | CC3 testnet | [`0xc91f3684d4119acc6717af3dab4c7d543ae49eec6da8904d8a04d97920f0824a`](https://creditcoin-testnet.blockscout.com/tx/0xc91f3684d4119acc6717af3dab4c7d543ae49eec6da8904d8a04d97920f0824a) |
 
 ### Deployed state, read back from the chain
 
-On the probe, Sepolia:
+On both current source probes:
 
 | Call | Answer |
 |---|---|
@@ -78,8 +78,8 @@ answering questions about Ethereum, through the precompile, with no oracle invol
 
 | Call | Answer |
 |---|---|
-| `frontierOf(3)` — Ethereum mainnet | 25,948,180 |
-| `frontierOf(1)` — Sepolia | 11,676,100 |
+| `frontierOf(3)` — Ethereum mainnet | 25,963,990 (live doctor read) |
+| `frontierOf(1)` — Sepolia | 11,691,500 (live doctor read) |
 | `frontierOf(99)` — a key that is not attested | reverts `UnknownChainKey` |
 | `MAX_BATCH()` | 10, matching the precompile's limit on queries under one continuity proof |
 | `PROBED_SIGNATURE()` | `0x2373d36eb926cb2c85ee44b32054271c7ae2854ea55412b676125465f04b94fc` |
@@ -88,8 +88,8 @@ The chain-key binding was asserted on-chain by the constructor and can be read b
 
 | Chain key | Native chain id | Probe |
 |---|---|---|
-| 3 | 1 (Ethereum mainnet) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` |
-| 1 | 11155111 (Sepolia) | `0xf9902F4CfEDF6fFDC4B8987e9132Fa968ADB70fe` |
+| 3 | 1 (Ethereum mainnet) | `0x81b6DcbcE28EC0634DC905cfDc5eA84005915852` |
+| 1 | 11155111 (Sepolia) | `0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115` |
 
 The registry refused to deploy until those keys matched what ChainInfo reports for this
 environment, so a deployment pointed at the wrong environment fails at construction
@@ -99,56 +99,58 @@ rather than reporting the wrong chain's state.
 
 | Measurement | Value | Where |
 |---|---|---|
-| Attestation lag, Ethereum mainnet | 39 blocks, about 7.8 minutes | `VERIFIED.md` |
-| Attestation lag, Sepolia | 41 blocks, about 8.2 minutes | `VERIFIED.md` |
-| Three real mainnet feeds in one probe transaction | 155,260 gas | `READ-PATH.md` |
-| Proving one feed to Creditcoin | 200,480 gas | measured |
-| Proving one source transaction carrying two feeds | 231,101 gas | measured |
-| **Marginal cost of a second feed in the same source transaction** | **30,621 gas** | the two rows above |
+| Attestation lag, Ethereum mainnet | 36 blocks, about 7 minutes | `VERIFIED.md` |
+| Attestation lag, Sepolia | 37 blocks, about 7 minutes | `VERIFIED.md` |
+| Seven Sepolia feeds in one `probeMany` transaction | 129,311 gas | source receipt `0x4a8cff...` |
+| Three mainnet feeds in one `probeMany` transaction | 99,139 gas | source receipt `0xf701eb...` |
+| Seven Sepolia observations under one continuity proof | 982,017 gas | CC3 receipt `0x6fad658a...` |
+| Three mainnet observations under one continuity proof | 703,124 gas | CC3 receipt `0xb009222f...` |
+| Mainnet stETH probe measured model | 89,292 gas limit; 57,134 used | source receipt `0x7256839a...` |
 
-That last number is the argument for batching. The first feed in a proof costs 200,480
-gas; the second costs 30,621, because the continuity proof is paid for once and the
-Merkle proof is all that is added per query. The precompile accepts ten queries under one
-continuity proof, so a full batch approaches roughly 48,000 gas per feed against 200,480
-for the same ten proven one at a time — about a quarter of the cost.
-| `StateProbe` deployment | 385,849 gas, 0.00094 ETH at 1.2 gwei | this file |
+These receipts are the live batching evidence. The source-side measured model reserves
+the wrapper baseline plus the target's direct estimate, including the EVM's 63/64 gas
+forwarding rule; it is not a fixed multiplier. The proof path pays one shared continuity
+chain per batch, so seven observations fit in one CC3 transaction rather than seven
+separate submissions.
 
 
 ## The loop, closed
 
 A value read on one chain, proven to another, and shown to be the same value.
 
+### Current live Sepolia path
+
 | Step | Where | Result |
 |---|---|---|
-| Read `totalSupply()` on Sepolia WETH | Sepolia, block 11,676,153 | 218,248.508 WETH |
-| Probe it | Sepolia | 29,380 gas |
-| Wait for attestation | Creditcoin | about 8 minutes, 33 blocks |
-| Build the proof | prover.cc3-testnet | 1,920 transaction bytes, 7 Merkle siblings, 8 continuity roots |
-| Submit it | CC3 testnet | 200,480 gas, Creditcoin block 5,464,540 |
-| Read it back | CC3 testnet | `0x…2e37467cb64a9aa49304` |
+| Read `totalSupply()` on Sepolia WETH | Sepolia, block 11,691,162 | 218,056.249 WETH |
+| Probe it in a seven-feed batch | Sepolia | [`0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd`](https://sepolia.etherscan.io/tx/0x4a8cff7cb6d67a26f0185942576a9f52789a24f4fa51a6667aae2a1d16893ccd), 129,311 gas |
+| Wait for attestation | Creditcoin | frontier 11,691,500 at the doctor sample; 338 source blocks behind |
+| Build and submit the shared proof | CC3 testnet | [`0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504`](https://creditcoin-testnet.blockscout.com/tx/0x6fad658a250c02e3e4b8120ac980a9811f51ae932af6966f1de924de7947d504), 982,017 gas, block 5,477,003 |
+| Read it back | CC3 testnet | `0x…2e2cda5a0da5116714fe` |
 
 Anyone can check the last line against the source without trusting this repository:
 
 ```
-cast call 0xFCCd509F4EbB8Bc9Baf8cAA965231F8ACCf2DaaA \
-  'observationOf(bytes32)((bytes,uint256,uint64,bool,bool,address))' \
+cast call 0x5c5bEE8b3D942cB7782071e13A272C7AE9f7C907 \
+  'observationOf(bytes32)((bytes,uint256,uint64,uint64,bool,bool,address))' \
   0x7296382ac1d2e0419f5ff0588bf91e56d9cd0399882670559a3361c8ec796346 \
   --rpc-url https://rpc.cc3-testnet.creditcoin.network
 
 cast call 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14 'totalSupply()(uint256)' \
-  --block 11676153 --rpc-url https://ethereum-sepolia-rpc.publicnode.com
+  --block 11691162 --rpc-url https://ethereum-sepolia-rpc.publicnode.com
 ```
 
-Both give 218248508270969010557700.
+The decoded returndata and the direct source read are byte-equal: both are the WETH
+total supply at source block 11,691,162.
 
 ### A Chainlink price, proven
 
-Sepolia's Chainlink ETH/USD aggregator read through Lens, at source block 11,676,425:
+Sepolia's Chainlink ETH/USD aggregator read through Lens at source block 11,691,162:
 
 | Where | Bytes | Value |
 |---|---|---|
-| On Sepolia, directly | `0x…3970a509c0` | $2,467.03 |
-| On Creditcoin, proven | `0x…3970a509c0` | $2,467.03 |
+| On Sepolia, directly | `0x…3aaba98236` | $2,519.88 |
+| On Creditcoin, proven | `0x…3aaba98236` | $2,519.88 |
 
 Worth stating plainly: this is a Chainlink feed carried onto a chain Chainlink does not
 serve, without Chainlink's participation and without anyone being trusted to report it
@@ -162,102 +164,120 @@ it. Here is why that matters, taken from the live deployment rather than a test:
 
 | | Value | |
 |---|---|---|
-| Sepolia block 11,676,454 timestamp | 1789062012 | 17:40:12 UTC |
-| `sourceTimestamp` recorded on Creditcoin | 1789062012 | 17:40:12 UTC — exact match |
-| `recordedAt`, Creditcoin's own clock | 1789062570 | 17:49:30 UTC |
-| Gap | **558 seconds** | |
+| Sepolia block 11,691,162 timestamp | 1789243932 | source-chain read time |
+| `sourceTimestamp` in the proven observation | 1789243932 | exact match |
+| `recordedAt`, Creditcoin's own clock | 1789246170 | proof landing time |
+| Gap | **2,238 seconds** | proof accounting gap |
 
 A Chainlink-shaped consumer computes age as `block.timestamp - updatedAt`. Had `updatedAt`
-carried Creditcoin's clock, every price would have looked **558 seconds younger than it
-was**, and a staleness check set to nine minutes would have passed on a value nine and a
-half minutes old. The adapter reports the source clock, so the check measures the real
-number.
+carried Creditcoin's clock, the value would have looked younger than it was by the
+attestation gap. The adapter reports `sourceTimestamp`, while Lens freshness itself is
+computed as `frontier - probeHeight` in source-chain blocks; `recordedAt` is never used to
+make a consumer accept a value.
 
 ### A Chainlink feed served through Chainlink's own interface
 
-`LensAggregatorV3` at `0x43E5…0fF5`, read exactly as any lending market reads a price:
+`LensAggregatorV3` at `0x134dbefE46b803ADab301D3c85f33E82a16A3993`, read exactly as any
+lending market reads a price:
+
+The following values are from the doctor/claim verification sample; age advances with the
+source frontier.
 
 | Call | Answer |
 |---|---|
 | `description()` | `sepolia.chainlink.ethUsd` |
 | `decimals()` | 8 |
 | `version()` | 4 |
-| `latestRoundData().answer` | `246703000000` — $2,467.03 per ETH |
-| `latestRoundData().roundId` | 11,676,454 — the source height the read happened at |
-| `latestRoundData().updatedAt` | 1789062012 — the source clock |
-| `ageInBlocks()` | 6 source blocks |
+| `latestRoundData().answer` | `251988116022` — $2,519.88 per ETH |
+| `latestRoundData().roundId` | 11,691,162 — the source height the read happened at |
+| `latestRoundData().updatedAt` | 1789243932 — the source clock |
+| `ageInBlocks()` | 338 source blocks at the doctor sample |
 
 The round id is the source-chain height rather than a counter, which makes a round a
 statement about where on the source chain the value came from.
 
-### A vote cast on Creditcoin with weight proven from another chain
+### VotePort: current live governance path
 
-The governance claim, carried out rather than described. Proposal 0 on
-`0x4AD27A0b32c0D2aA0ebf96D7F1F74810093be115`:
+The fresh `VotePort` deployment reads the checkpointed weight proven in the same seven-feed
+Sepolia proof. The snapshot remains historical by design: the feed calls
+`getPastVotes(account, 11,676,782)` while the probe transaction itself ran at source block
+11,691,162.
 
-| | |
+| Read | Result |
 |---|---|
-| Proposal | "Adopt Lens as the reference feed for this treasury" |
-| Snapshot | Sepolia block 11,676,782 |
-| `provenWeight(voter, 11676782)` | 1,000,000 LVOTE |
-| `forVotes` after the vote | 1,000,000 LVOTE |
-| `weightUsed` | 1,000,000 LVOTE |
-| A second vote from the same address | reverts `AlreadyVoted(0, 0xcf7a…)` |
+| Current `VotePort` | `0xe43E5484Da58762800e7f495076658586295ccD0` |
+| `provenWeight(0xcf7a...FC359, 11676782)` | 1,000,000 LVOTE |
+| Fresh proposal | id 0, snapshot 11,676,782 |
+| Fresh vote outcome | 1,000,000 for, 0 against |
 
 | Step | Chain | Hash |
 |---|---|---|
-| Probe the holder's weight at the snapshot | Sepolia | `0x6f80012b138dfbbefe0166e1a94ac16700d795de6fa035f6d8f76c32c352d1f6` |
-| Open the proposal | CC3 testnet | `0x1abd0b22275a7c7e48538212c4ada66a6a4e981a9ef7dc7dc5a5c387a2d67346` |
-| Cast the vote | CC3 testnet | `0x1fbd183ee2fec918733f100f101f54bcf311b4af262dccaa3b9870dd4846adf5` |
+| Open the proposal | CC3 testnet | [`0x5b5c1f29a16aac70224cf9956985560f48481658cb5b131d2b3cd1212d43635f`](https://creditcoin-testnet.blockscout.com/tx/0x5b5c1f29a16aac70224cf9956985560f48481658cb5b131d2b3cd1212d43635f) |
+| Cast the vote with the proven weight | CC3 testnet | [`0x84065ed540be0204cadb60a32c267a2c0364c9e429bcc9a976499997c7578a87`](https://creditcoin-testnet.blockscout.com/tx/0x84065ed540be0204cadb60a32c267a2c0364c9e429bcc9a976499997c7578a87) |
 
-No token moved. No bridge, no snapshot API, no tally anybody had to be trusted about. The
-weight was read from the token's own checkpoints on Sepolia and the log proving that read
-was verified by the precompile.
+No token moved and no weight was supplied by the caller. `VotePort` derives the feed id
+from the caller, token, selector and snapshot block, then reads the verified observation.
 
 **About the token.** `LensVoteToken` is a real OpenZeppelin `ERC20Votes` deployment, not a
-mock, but it is ours: Sepolia has almost no checkpointed governance tokens and the UNI
-deployment that exists is held by nobody who could demonstrate with it. Its checkpoints
-are genuine — `getPastVotes` returns 0 at block 11,676,781 and 1,000,000 at 11,676,782,
-the block the delegation landed in. Every other part of the path is the production one,
-and pointing this at a widely-held token changes one constructor argument.
+mock. Its checkpoints are genuine, and the same `VotePort` constructor accepts a
+Compound-style selector for tokens such as UNI and COMP.
 
 ### Both kinds of batching, measured
 
-| What | Chain | Hash |
+| What | Chain | Result |
 |---|---|---|
-| Two queries from different blocks, one shared continuity proof | CC3 testnet | [`0xf05c6f49ff2d9ed8e41eaf21853c49a8ebe03a274249acc8c7ca3d95e98218c4`](https://creditcoin-testnet.blockscout.com/tx/0xf05c6f49ff2d9ed8e41eaf21853c49a8ebe03a274249acc8c7ca3d95e98218c4) |
+| Seven source reads in one `probeMany` | Sepolia | 129,311 gas, tx `0x4a8cff...` |
+| Seven verified observations in one `submitBatch` | CC3 testnet | 982,017 gas, tx `0x6fad658a...` |
+| Three mainnet source reads in one `probeMany` | Ethereum mainnet | 99,139 gas, tx `0xf701eb...` |
+| Three verified observations in one `submitBatch` | CC3 testnet | 703,124 gas, tx `0xb009222f...` |
 
-Sepolia blocks 11,677,327 and 11,677,331, spanned by 14 continuity roots, recorded in one
-Creditcoin transaction: **261,492 gas, 130,746 per query**, against 200,480 to prove one
-alone. That is 35% cheaper than proving the two separately.
-
-An earlier version of this file called the 231,101 figure a shared continuity proof. It
-was not: that transaction called `submitProof` on a single source transaction carrying two
-logs. Both mechanisms are real and their costs differ — 30,621 gas for another log in the
-same transaction, 61,012 for another query under a shared continuity chain.
+The shared continuity proof is paid once per batch. The source prober's measured gas model
+also reserves the wrapper baseline and each target's estimate; it does not hide pallet-EVM
+forwarding under a fixed heuristic.
 
 ### The refusals, on the live chain
 
-Rejections are asserted in tests, but two of them have now also been observed on
-Creditcoin itself rather than against a stub:
+The fresh registry's read path fails closed. `frontierOf(99)` reverts with
+`UnknownChainKey`, and the deployed adapter refuses an unavailable or stale observation
+instead of returning a sentinel price. Replay, receipt status, emitter binding, monotonic
+height and attestation-range refusals are covered by the adversarial Foundry suite.
 
-| Attempt | Result |
-|---|---|
-| Submit the same proof a second time | `QueryAlreadyConsumed(queryKey=0xa31c4e17c23099854734310d55fea1faa760d2dbb544abe119ef90ddf412904c)` |
-| `frontierOf(99)`, a chain key this environment does not attest | `UnknownChainKey(99)` |
+## Latest keeper refresh (2026-09-13)
 
-A valid proof stays valid forever, which is exactly why it has to be spent once.
+The latest live keeper pass produced fresh source transactions on both configured chains.
+The single-proof path initially saw the hosted builder's transient `BlockNotReady`
+response; a retry completed the proofs. The client now retries that response through the
+same primary, fallback and local-builder chain used by the batch path.
 
+| Source | Probe transaction | Source block | Proof transaction | CC3 block | Proof gas | Result |
+|---|---|---:|---|---:|---:|---|
+| Ethereum mainnet | [`0x2e0728…ec27f`](https://etherscan.io/tx/0x2e0728a4315fba446b207c45074a62a2c59b6a875fa1d69a98536565c25ec27f) | 25,964,672 | [`0xf34bfd…8b2d0`](https://creditcoin-testnet.blockscout.com/tx/0xf34bfdb6b4536f54c3d87a56d3d63d00d92094596072bef7315fd8144ae8b2d0) | 5,477,722 | 276,066 | 3/3 byte-equal |
+| Ethereum Sepolia | [`0x3da6ad…c92a6`](https://sepolia.etherscan.io/tx/0x3da6ad40d01ed65bdffadbd408e33e8935a26ca4daf7f2d28e1ef8208dbc92a6) | 11,692,212 | [`0x8cd83b…565f`](https://creditcoin-testnet.blockscout.com/tx/0x8cd83bfb71e45b70ed247d272ce89b980ffc3bf8f46a5cd50c5cb47cd68c565f) | 5,477,768 | 348,101 | 7/7 byte-equal |
 
-## Audit status (2026-09-12)
+The mainnet refresh included the stETH exchange rate (1.243869391 ETH/stETH), ENS
+`totalSupply()` (100,000,000 ENS), and Uniswap's dynamic tick-cumulative array
+(`33553776709271`, `33554133078311`). The Sepolia refresh included WETH total supply
+(218,020.975 WETH), Aave WETH backing (12,071.334), aWETH issued (12,071.222), the
+checkpointed voting weight (1,000,000 LVOTE), Chainlink ETH/USD ($2,524.13), and both
+role checks (true and false). Every listed result was compared to the direct source read
+at the proven source height.
 
-The audit checkpoint is intentionally paused. The deployed contracts and evidence below remain historical until fresh deployment parity is established.
+## Audit status (2026-09-13)
+
+The immutable graph has now been redeployed and exercised end-to-end. The status below is a
+release audit, not a claim that the remaining measurement work is complete.
 
 | Open gate | Current status |
 |---|---|
-| Deployment parity | Live LensRegistry is missing `submitProofForFeed`; fresh deployment is required because the registry is immutable. |
-| Live operation | All ten current feeds were stale; no persistent prober/indexer service was found. |
-| Differential | 7 matches, 0 divergences, 3 unreachable mainnet historical reads; archive RPC is still required. |
-| Coverage | 93.16% lines across `contracts/src`; release target is 95%+. |
+| Deployment parity | Green: `check-deployed` matches all ten current deployments to checked-in bytecode. |
+| Live operation | Green sample: `doctor` reports 0 failures across ten feeds and one low mainnet balance warning. |
+| Byte equality | Green for seven source reads; three mainnet historical reads remain inconclusive without archive RPC. |
+| Product smoke | Green: feed explorer, consumers, builder validation and fail-closed cards pass `web-smoke`. |
+| Claims | Current deployment and transaction claims verify; run `node tools/verify-claims.mjs` after any doc edit. |
+| Coverage | 93.16% lines across `contracts/src`; release target remains 95%+. |
 | Verification | Blockscout/Sourcify full-match evidence is still open for the current build. |
-| Remaining correctness work | SnapshotProver age check, breaker reorg recovery, and prober failover/batching/finality behavior. |
+| Operations | Persistent prober/indexer service, 24-hour latency/reorg measurements and archive differential are still open. |
+
+The current graph is suitable for continued audit and demo work. It is not marked complete
+until source verification, archive differential, coverage and unattended operation have
+evidence.

@@ -84,16 +84,28 @@ for (const want of WANTED) {
 
 console.log(`\n  deployer ${wallet.address}`);
 console.log(`  probes   ${probes.join(", ")}`);
+const balance = await provider.getBalance(wallet.address);
+const fee = await provider.getFeeData();
+const feePerGas = fee.maxFeePerGas ?? fee.gasPrice ?? 0n;
+const factory = new ContractFactory(artifact.abi, artifact.bytecode.object, wallet);
+const deployRequest = await factory.getDeployTransaction(keys, ids, probes);
+const gasLimit = await provider.estimateGas({ ...deployRequest, from: wallet.address });
+const maxCost = gasLimit * feePerGas;
+console.log('  balance  ' + balance + ' wei, estimated gas ' + gasLimit + ', max cost ' + maxCost + ' wei');
 
 if (!broadcast) {
   console.log('\nnothing sent. re-run with --broadcast to deploy.\n');
   process.exit(0);
 }
 
-const factory = new ContractFactory(artifact.abi, artifact.bytecode.object, wallet);
-const registry = await factory.deploy(keys, ids, probes);
+if (feePerGas === 0n) throw new Error('provider returned no usable gas price');
+if (balance < maxCost) throw new Error('balance ' + balance + ' is below estimated maximum deployment cost ' + maxCost);
+const registry = await factory.deploy(keys, ids, probes, { gasLimit });
 console.log(`\n  deployment tx ${registry.deploymentTransaction().hash}`);
-await registry.waitForDeployment();
+const deploymentTx = registry.deploymentTransaction();
+if (!deploymentTx) throw new Error('deployment transaction was not created');
+const receipt = await deploymentTx.wait();
+if (!receipt || receipt.status !== 1) throw new Error('registry deployment reverted');
 const address = await registry.getAddress();
 console.log(`  registry      ${address}`);
 

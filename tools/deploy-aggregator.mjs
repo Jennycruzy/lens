@@ -11,7 +11,7 @@ import { ContractFactory, Contract } from 'ethers';
 import {
 
   env, feedByName, callDataFor, chainKeyFor, computeFeedId,
-  creditcoin, creditcoinWallet, addresses, deployments,
+  creditcoin, creditcoinWallet, deployments,
 } from '../prober/lib/config.mjs';
 
 /** Reads a compiled artifact, and says what to do when the project has not been built. */
@@ -40,8 +40,10 @@ const maxAge = BigInt(maxAgeArg);
 
 const artifact = readArtifact(new URL('../out/LensAggregatorV3.sol/LensAggregatorV3.json', import.meta.url));
 
+const registryAddress = deployments.creditcoin.registry;
+if (!registryAddress) throw new Error('creditcoin.registry missing from deployments.json');
 console.log(`\n  feed        ${feed.name}`);
-console.log(`  registry    ${addresses.registry}`);
+console.log(`  registry    ${registryAddress}`);
 console.log(`  chain key   ${chainKey}`);
 console.log(`  feed id     ${feedId}`);
 console.log(`  decimals    ${decimals}`);
@@ -54,7 +56,7 @@ if (!broadcast) {
 
 const factory = new ContractFactory(artifact.abi, artifact.bytecode.object, creditcoinWallet());
 const aggregator = await factory.deploy(
-  addresses.registry, chainKey, feedId, decimals, maxAge, feed.name,
+  registryAddress, chainKey, feedId, decimals, maxAge, feed.name,
 );
 console.log(`\n  deployment tx ${aggregator.deploymentTransaction().hash}`);
 await aggregator.waitForDeployment();

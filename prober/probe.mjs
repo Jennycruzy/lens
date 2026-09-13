@@ -115,7 +115,33 @@ if (gweiNow > ceilingGwei) {
  */
 console.log(`  direct reads were pinned before probing at source block ${readHeight}`);
 
-const gas = await probe[call.fn].estimateGas(...call.args);
+// The probe catches target reverts, so its own estimate can be lower than the gas
+// required for a target that actually succeeds: the EVM sees a successful wrapper
+// even when the inner call ran out of the wrapper's forwarded gas. Measure the target
+// calls directly from the probe address, then add a measured wrapper baseline from
+// no-code calls. This is deliberately not a fixed multiplier or a guessed constant.
+const maxProbeGas = await probe.MAX_PROBE_GAS();
+const noCode = '0x0000000000000000000000000000000000000001';
+const baselineTargets = targets.map(() => noCode);
+const baselineDatas = datas.map(() => '0x');
+const wrapperBaseline = await probe[call.fn].estimateGas(...(
+  single ? [noCode, '0x'] : [baselineTargets, baselineDatas]
+));
+const targetGas = [];
+for (const item of expected) {
+  try {
+    const measured = await provider.estimateGas({ from: probe.target, to: item.feed.target, data: item.data });
+    targetGas.push(measured > maxProbeGas ? maxProbeGas : measured);
+  } catch (e) {
+    targetGas.push(maxProbeGas);
+    console.log(`    target gas estimate unavailable for ${item.feed.name}; reserving the ${maxProbeGas} gas cap (${e.shortMessage ?? e.message})`);
+  }
+}
+const forwardedGas = targetGas.reduce((sum, measured) => sum + ((measured * 64n + 62n) / 63n), 0n);
+const measuredModel = wrapperBaseline + forwardedGas;
+const observedEstimate = await probe[call.fn].estimateGas(...call.args);
+const gas = observedEstimate > measuredModel ? observedEstimate : measuredModel;
+console.log(`  measured gas model: wrapper baseline ${wrapperBaseline}, target gas [${targetGas.join(', ')}], transaction limit ${gas}`);
 const fee = await provider.getFeeData();
 console.log(`\n  ${call.fn}: ${gas} gas at ${Number(fee.gasPrice ?? 0n) / 1e9} gwei`);
 

@@ -16,7 +16,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { keccak256 } from 'ethers';
-import { env, creditcoin, sourceProvider, addresses
+import { env, creditcoin, sourceProvider, probeAddress, addresses
 } from '../prober/lib/config.mjs';
 
 const stripMetadata = (hex) => {
@@ -47,8 +47,8 @@ const targets = [
   ['SnapshotProver', addresses.snapshotProver, creditcoin],
   ['LensMarket', addresses.market, creditcoin],
   ['ReserveMonitor', addresses.reserveMonitor, creditcoin],
-  ['StateProbe', addresses.probe, sourceProvider(11155111)],
-  ['StateProbe (mainnet)', addresses.probe, sourceProvider(1)],
+  ['StateProbe', probeAddress(11155111), sourceProvider(11155111)],
+  ['StateProbe (mainnet)', probeAddress(1), sourceProvider(1)],
 ];
 
 let stale = 0;
