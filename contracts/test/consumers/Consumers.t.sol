@@ -208,7 +208,7 @@ contract LensMarketTest is ConsumerRig {
         vm.stopPrank();
     }
 
-    /// The demonstration: a price move on another chain, proven here, triggers a
+    /// The whole point: a price move on another chain, proven here, triggers a
     /// liquidation in a market that knows nothing about Lens.
     function test_aProvenPriceFallMakesAPositionLiquidatable() public {
         _price(FRONTIER - 100, 2000);

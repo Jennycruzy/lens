@@ -9,7 +9,7 @@
     "build": "forge build",
     "test": "forge test",
     "test:offline": "forge test --no-match-path 'contracts/test/fork/*'",
-    "coverage": "forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary",
+    "coverage": "forge coverage --ir-minimum --no-match-coverage 'test|script|tokens' --report summary",
     "verify:infra": "node tools/verify-infra.mjs",
     "verify:claims": "node tools/verify-claims.mjs",
     "verify:contracts": "bash tools/verify-contracts.sh",

@@ -103,7 +103,7 @@ jobs:
       - name: coverage over src
         env:
           ETHEREUM_RPC: https://ethereum-rpc.publicnode.com
-        run: forge coverage --ir-minimum --no-match-coverage 'test|script|demo' --report summary
+        run: forge coverage --ir-minimum --no-match-coverage 'test|script|tokens' --report summary
       - name: symbolic proofs of the consumer's freshness arithmetic
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh

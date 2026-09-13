@@ -8,12 +8,12 @@ import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
 
 /**
  * @title LensVoteToken
- * @notice A governance token on Sepolia, so the governance path can be shown working.
+ * @notice A governance token on Sepolia, so the governance path runs against real checkpoints.
  *
  * @dev **Why this exists, stated plainly.** `VotePort` reads a holder's weight from a
  *      token's own checkpoints on the source chain. Ethereum mainnet has many such
  *      tokens; Sepolia has few, and the one that exists — the UNI deployment — is not
- *      held by anybody who could demonstrate with it.
+ *      held by anybody who could exercise the path with it.
  *
  *      So this is a real OpenZeppelin `ERC20Votes` deployment, not a mock. Its
  *      checkpoints are genuine, written by the same code every governance token uses,
@@ -25,8 +25,8 @@ import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
  *      checks. Substituting a widely-held token changes one constructor argument and
  *      nothing else.
  *
- *      It is kept apart from `src/` proper, in a directory named for what it is, so
- *      nobody mistakes a demonstration token for part of the protocol.
+ *      It is kept apart from the protocol contracts, in its own directory, so nobody
+ *      mistakes a token for part of the protocol.
  */
 contract LensVoteToken is ERC20, ERC20Permit, ERC20Votes {
     /// @notice Anyone may take a fixed allocation once, so a stranger can try the flow.

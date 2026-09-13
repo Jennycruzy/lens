@@ -35,7 +35,7 @@ Lens is not another application built on Attestcoin. It is a reusable read layer
 applications built on Attestcoin: one feed can serve many consumers, and one integration
 expands the data available to all of them.
 
-## Live demo
+## Live explorer
 
 <https://lens.54-154-121-30.sslip.io>
 
@@ -144,7 +144,7 @@ What Lens cannot do, volunteered rather than discovered.
 - **Sepolia prices mean nothing.** Sepolia's pools have no real liquidity; the Sepolia
   price feed is Chainlink's real aggregator or nothing. Pool-derived values come from
   Ethereum mainnet, where the stETH, ENS and Uniswap feeds live.
-- **The demonstration governance token is ours.** `LensVoteToken` on Sepolia is a real
+- **The Sepolia governance token is ours.** `LensVoteToken` on Sepolia is a real
   OpenZeppelin `ERC20Votes` deployment, but we deployed it and hold the supply, because
   Sepolia has almost no checkpointed governance tokens. Every other part of the path is
   the production one, and the same technique is proven on mainnet against ENS's own
@@ -228,7 +228,7 @@ The consumer's freshness arithmetic is proved symbolically in
 `contracts/test/symbolic/`: a value is handed out only when present, succeeded, whole,
 not regressed and within the bound; every input meeting those conditions is accepted; a
 refusal never carries bytes; a regressed frontier is the maximum age, never zero; and
-the reverting and reporting reads agree. No mocks sit in any demo path: the stubs in
+the reverting and reporting reads agree. No mocks sit in any live path: the stubs in
 `contracts/test/helpers` drive the registry through states the live network will not
 hold still for, and every behaviour they cover is also exercised on-chain.
 

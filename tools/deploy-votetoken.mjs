@@ -1,5 +1,5 @@
 /**
- * Deploys the demonstration governance token to Sepolia and self-delegates, so the
+ * Deploys the Sepolia governance token and self-delegates, so the
  * holder immediately has checkpointed voting weight for VotePort to read.
  *
  *   node tools/deploy-votetoken.mjs [--broadcast]

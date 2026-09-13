@@ -151,7 +151,7 @@ contract LensMarket {
 
     /**
      * @notice Seize collateral from an unhealthy position.
-     * @dev The liquidation the demonstration turns on: a real price move on another
+     * @dev The liquidation the whole market turns on: a real price move on another
      *      chain, proven here, makes a position liquidatable and this succeeds.
      */
     function liquidate(address who) external returns (uint256 debtRepaid, uint256 collateralSeized) {
