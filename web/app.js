@@ -308,20 +308,29 @@ async function trace(feed) {
   }
 }
 
-/** The source transaction whose log carries this observation: the Probed event at the proven block, for this call. */
+/**
+ * The source transaction whose log carries this observation: the Probed event at the
+ * proven block, for this call. The main endpoint first, then the same public endpoints
+ * the byte comparison falls back to, since a log query at a past block is a historical
+ * read too.
+ */
 async function findProbeTx(feed, o) {
-  try {
-    const topic = probeInterface.getEvent('Probed').topicHash;
-    const logs = await sourceProviders[feed.chainId].getLogs({
-      address: C.sources[feed.chainId].probe,
-      fromBlock: Number(o.probeHeight),
-      toBlock: Number(o.probeHeight),
-      topics: [topic, ethers.zeroPadValue(feed.target, 32), keccak256(feed.calldata)],
-    });
-    return logs[0]?.transactionHash ?? null;
-  } catch {
-    return null;
+  const src = C.sources[feed.chainId];
+  const topic = probeInterface.getEvent('Probed').topicHash;
+  const filter = {
+    address: src.probe,
+    fromBlock: Number(o.probeHeight),
+    toBlock: Number(o.probeHeight),
+    topics: [topic, ethers.zeroPadValue(feed.target, 32), keccak256(feed.calldata)],
+  };
+  for (const rpc of [src.rpc, ...(src.archiveRpcs ?? [])]) {
+    try {
+      const provider = rpc === src.rpc ? sourceProviders[feed.chainId] : new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+      const logs = await provider.getLogs(filter);
+      if (logs[0]) return logs[0].transactionHash;
+    } catch { /* try the next endpoint */ }
   }
+  return null;
 }
 
 /**
