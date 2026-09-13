@@ -3,6 +3,7 @@ name: tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
   schedule:
     # Nightly, for the runs that touch live networks and are too slow per-commit.
     - cron: '17 3 * * *'
@@ -23,12 +24,18 @@ jobs:
       - name: build
         run: forge build
 
-      # Everything that needs no network. These gate every commit.
+      # Everything that needs no network. These run on every commit.
       - name: unit, adversarial, invariant and property tests
         run: forge test --no-match-path 'contracts/test/fork/*'
 
+      # The generator reads .env for RPC URLs; the example file carries the public ones.
       - name: the page's feed list is generated, not a second copy
-        run: node tools/build-web-config.mjs --check
+        run: |
+          cp .env.example .env
+          node tools/build-web-config.mjs --check
+
+      - name: the page is well-formed and references only files that exist
+        run: node tools/web-static.mjs
 
       - name: formatting
         run: forge fmt --check
@@ -39,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     # Fork tests hit public RPCs, which rate-limit. Running them per-commit on a busy
     # repository gets the runner throttled and the failures are not about the code.
-    if: github.event_name == 'schedule' || github.event_name == 'pull_request'
+    if: github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
@@ -54,24 +61,38 @@ jobs:
           ETHEREUM_RPC: ${{ secrets.ETHEREUM_RPC || 'https://ethereum-rpc.publicnode.com' }}
         run: forge test --match-path 'contracts/test/fork/*'
 
+      # The tools read .env; the example file carries the public endpoints and the
+      # committed deployments.json carries the addresses, so no secret is needed here.
       - name: every dependency, re-derived from the live network
-        run: node tools/verify-infra.mjs
-
-      # These need a deployment to check against, so they only run where one is
-      # configured. A missing .env is not a failure, it is an absent deployment.
-      - name: claims and differential
-        if: ${{ secrets.CC3_TESTNET_RPC != '' }}
-        env:
-          CC3_TESTNET_RPC: ${{ secrets.CC3_TESTNET_RPC }}
         run: |
           cp .env.example .env
-          node tools/verify-claims.mjs
+          node tools/verify-infra.mjs
+
+      - name: every claim in the docs, against the chains
+        run: node tools/verify-claims.mjs
+
+      - name: everything the web page reads, resolved live
+        run: node tools/web-smoke.mjs
+
+      # Historical mainnet comparisons need an archive endpoint. Without one the run
+      # reports those feeds as inconclusive; it is not turned into a pass, and the
+      # step name says whether the archive was configured.
+      - name: differential, with archive access
+        if: ${{ secrets.ETHEREUM_ARCHIVE_RPC != '' }}
+        env:
+          ETHEREUM_ARCHIVE_RPC: ${{ secrets.ETHEREUM_ARCHIVE_RPC }}
+        run: |
+          echo "ETHEREUM_ARCHIVE_RPC=$ETHEREUM_ARCHIVE_RPC" >> .env
           node tools/differential.mjs
+
+      - name: differential, without archive access (mainnet feeds inconclusive)
+        if: ${{ secrets.ETHEREUM_ARCHIVE_RPC == '' }}
+        run: node tools/differential.mjs
 
   coverage:
     name: coverage
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1

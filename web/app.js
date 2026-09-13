@@ -20,20 +20,33 @@ const REGISTRY_ABI = [
   'function feedIdFromCallHash(uint64,address,bytes32) view returns (bytes32)',
   'function chainKeys() view returns (uint64[])',
   'function sourceOf(uint64) view returns ((uint64 chainId,address probe,bool registered))',
+  'event ObservationRecorded(bytes32 indexed feedId, uint64 indexed chainKey, address indexed target, uint256 probeHeight, bool callSucceeded, address prober, bytes returnData)',
+];
+const PROBE_ABI = [
+  'event Probed(address indexed target, bytes32 indexed callHash, address indexed caller, bool success, bool truncated, uint256 blockNumber, uint256 blockTimestamp, bytes returnData)',
 ];
 const CHAIN_INFO_ABI = [
   'function get_supported_chains() view returns ((uint64 chainKey,uint64 chainId,bytes chainName,uint8 chainEncoding)[])',
 ];
 const registry = new Contract(C.registry, REGISTRY_ABI, creditcoin);
+const probeInterface = new ethers.Interface(PROBE_ABI);
 const chainInfo = new Contract('0x0000000000000000000000000000000000000fd3', CHAIN_INFO_ABI, creditcoin);
 
 const coder = AbiCoder.defaultAbiCoder();
-const short = (h, n = 10) => `${h.slice(0, n)}…${h.slice(-4)}`;
+const short = (h, n = 10) => (h ? `${h.slice(0, n)}…${h.slice(-4)}` : '—');
+const num = (n) => Number(n).toLocaleString();
 const el = (t, cls, html) => {
   const e = document.createElement(t);
   if (cls) e.className = cls;
   if (html !== undefined) e.innerHTML = html;
   return e;
+};
+const $ = (id) => document.getElementById(id);
+const link = (href, text, cls = 'mono') => `<a class="${cls}" href="${href}" target="_blank" rel="noopener">${text}</a>`;
+const when = (ts) => new Date(Number(ts) * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+const minutes = (blocks) => {
+  const m = (blocks * 12) / 60;
+  return m >= 120 ? `~${(m / 60).toFixed(1)} h` : `~${Math.round(m)} min`;
 };
 
 /** Chain keys are environment-local, so they are resolved from the precompile, never assumed. */
@@ -45,131 +58,389 @@ async function chainKeys() {
   return chainKeyByChainId;
 }
 
+/** The page's headline feeds, in the order the generator ranks them. */
+const featuredFeeds = () => C.feeds.filter((f) => f.featured).sort((a, b) => a.featured - b.featured);
+
 const feedId = (chainKey, target, calldata) =>
   keccak256(coder.encode(['uint64', 'address', 'bytes32'], [chainKey, target, keccak256(calldata)]));
 
-async function loadFeeds() {
+/** The registry's view of a feed, plus the freshness arithmetic every reader uses. */
+async function readFeed(feed) {
   const keys = await chainKeys();
-  const tbody = document.querySelector('#feeds tbody');
-  tbody.innerHTML = '';
-
-  for (const feed of C.feeds) {
-    const chainKey = keys[feed.chainId];
-    const src = C.sources[feed.chainId];
-    const row = el('tr');
-    const id = feedId(chainKey, feed.target, feed.calldata);
-
-    row.appendChild(el('td', '', `<div>${feed.name}</div><div class="dim" style="font-size:12.5px">${feed.note}</div>`));
-
-    if (chainKey === undefined) {
-      row.appendChild(el('td', 'dim', `${src.label}<br><span class="warn">not attested here</span>`));
-      row.appendChild(el('td', 'dim', '—'));
-      row.appendChild(el('td', 'dim', '—'));
-      row.appendChild(el('td', 'dim', '—'));
-      tbody.appendChild(row);
-      continue;
-    }
-
-    row.appendChild(el('td', '',
-      `${src.label}<div class="dim mono">key ${chainKey} here</div>` +
-      `<a class="mono" href="${src.explorer}/address/${feed.target}" target="_blank" rel="noopener">${short(feed.target)}</a>`));
-
-    const valueCell = el('td', 'dim', 'reading…');
-    const ageCell = el('td', 'dim', '—');
-    const checkCell = el('td');
-    row.append(valueCell, ageCell, checkCell);
-    tbody.appendChild(row);
-
-    try {
-      if (!(await registry.hasObservation(id))) {
-        valueCell.className = 'dim';
-        valueCell.textContent = 'never proven';
-        continue;
-      }
-      const o = await registry.observationOf(id);
-      const frontier = await registry.frontierOf(chainKey);
-      const regressed = o.probeHeight > frontier;
-      const age = regressed ? Infinity : Number(frontier - o.probeHeight);
-
-      if (!o.callSucceeded) {
-        valueCell.innerHTML = '<span class="bad">the source read failed</span>';
-      } else if (regressed) {
-        valueCell.innerHTML = '<span class="bad">attestation frontier regressed; refused</span>';
-      } else if (o.truncated) {
-        valueCell.innerHTML = '<span class="warn">truncated, not decodable</span>';
-      } else {
-        valueCell.innerHTML =
-          `<div>${feed.decode(o.returnData)}</div>` +
-          `<div class="hex mono">${short(o.returnData, 20)}</div>` +
-          `<div class="dim mono">${src.label.split(' ')[1] ?? ''} block ${o.probeHeight}</div>`;
-      }
-
-      if (regressed) {
-        ageCell.className = 'bad';
-        ageCell.textContent = 'frontier regressed — feed unavailable';
-      } else {
-        ageCell.className = age > 600 ? 'warn' : '';
-        ageCell.innerHTML = `${age} blocks<div class="dim" style="font-size:12px">~${Math.round((age * 12) / 60)} min</div>`;
-      }
-
-      const btn = el('button', '', 'verify');
-      btn.onclick = () => verify(btn, checkCell, feed, chainKey, o);
-      checkCell.appendChild(btn);
-    } catch (e) {
-      valueCell.innerHTML = `<span class="bad">${e.shortMessage ?? e.message}</span>`;
-    }
-  }
+  const chainKey = keys[feed.chainId];
+  if (chainKey === undefined) return { chainKey, state: 'not-attested' };
+  const id = feedId(chainKey, feed.target, feed.calldata);
+  if (!(await registry.hasObservation(id))) return { chainKey, id, state: 'missing' };
+  const [o, frontier] = await Promise.all([registry.observationOf(id), registry.frontierOf(chainKey)]);
+  const regressed = o.probeHeight > frontier;
+  const age = regressed ? Infinity : Number(frontier - o.probeHeight);
+  let state = 'ok';
+  if (!o.callSucceeded) state = 'failed';
+  else if (regressed) state = 'regressed';
+  else if (o.truncated) state = 'truncated';
+  return { chainKey, id, state, o, frontier: Number(frontier), age };
 }
 
 /**
  * The comparison, run in the visitor's browser: call the same contract with the same
  * calldata on the source chain at the height that was proven, and hold it against what
- * Creditcoin holds.
+ * Creditcoin holds. Three outcomes, kept apart: equal, diverged, and could-not-check.
+ * A public RPC declining to serve an old block says nothing about whether the values
+ * agree, so it is never shown as a divergence.
  */
-async function verify(btn, cell, feed, chainKey, observation) {
-  btn.disabled = true;
-  btn.textContent = 'checking…';
+async function compare(feed, observation) {
   try {
-    const provider = sourceProviders[feed.chainId];
-    const onSource = await provider.call({
+    const onSource = await sourceProviders[feed.chainId].call({
       to: feed.target,
       data: feed.calldata,
       blockTag: Number(observation.probeHeight),
     });
-    const agrees = onSource === observation.returnData;
-    cell.innerHTML =
-      `<span class="pill ${agrees ? 'ok' : 'bad'}">${agrees ? 'byte-equal' : 'DIVERGED'}</span>` +
-      `<div class="hex mono" style="margin-top:6px">source ${short(onSource, 20)}</div>` +
-      `<div class="hex mono">lens&nbsp;&nbsp; ${short(observation.returnData, 20)}</div>`;
+    return { outcome: onSource === observation.returnData ? 'equal' : 'diverged', onSource };
   } catch (e) {
-    // Public RPCs decline historical state past their retention, and Ethereum mainnet's
-    // free endpoints want a token for it. That says nothing about whether the values
-    // agree, so it must never be shown as a divergence — the honest label is that the
-    // check could not be made here.
-    const msg = e.shortMessage ?? e.message ?? '';
-    const archive = /archive|personal token|missing revert data|state.*not available/i.test(msg);
-    cell.innerHTML = archive
-      ? `<span class="pill warn">not checkable here</span>` +
-        `<div class="dim" style="font-size:12px;margin-top:6px">this public RPC will not serve state at block ${observation.probeHeight}.` +
-        ` The comparison was made when the value was proven; an archive endpoint reproduces it.</div>`
-      : `<span class="pill bad">error</span><div class="dim" style="font-size:12px;margin-top:6px">${msg.slice(0, 120)}</div>`;
-    btn.disabled = false;
-    btn.textContent = 'retry';
+    // ethers puts the RPC's own words in the response body, not the short message, and
+    // publicnode answers a historical call with a 403 and "archive requests require a
+    // personal token". All of that is "could not check here", never "diverged".
+    const msg = [e.shortMessage, e.message, e.info?.responseBody, e.info?.error?.message].filter(Boolean).join(' ');
+    const archive = /archive|personal token|missing revert data|state.*not available|missing trie node|header not found|403/i.test(msg);
+    return { outcome: archive ? 'archive' : 'error', message: e.shortMessage ?? e.message ?? '' };
+  }
+}
+
+function describeState(r) {
+  switch (r.state) {
+    case 'not-attested': return '<span class="warn">NOT ATTESTED HERE</span>';
+    case 'missing': return '<span class="muted">NOT YET PROVEN</span>';
+    case 'failed': return '<span class="bad">SOURCE CALL FAILED</span>';
+    case 'regressed': return '<span class="bad">FRONTIER REGRESSED · REFUSED</span>';
+    case 'truncated': return '<span class="warn">TRUNCATED · REFUSED</span>';
+    default: return '';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Network status in the nav.
+
+async function loadStatus() {
+  const pill = $('net-status');
+  try {
+    const n = await creditcoin.getBlockNumber();
+    pill.className = 'pill ok';
+    pill.innerHTML = `<span class="dot live"></span> CC3 testnet live · block ${num(n)}`;
+  } catch {
+    pill.className = 'pill bad';
+    pill.innerHTML = '<span class="dot"></span> CC3 testnet unreachable';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The hero: one value, mainnet, live.
+
+async function loadHeroFlow() {
+  const feed = C.feeds.find((f) => f.name === 'mainnet.steth.rate') ?? C.feeds.find((f) => f.featured) ?? C.feeds[0];
+  $('hf-call').textContent = feed.signature.split(' ')[0].replace(/\(.*$/, '') + (feed.name.includes('steth') ? '(1e18)' : '()');
+  const src = C.sources[feed.chainId];
+  try {
+    const r = await readFeed(feed);
+    if (r.state !== 'ok') {
+      $('hf-src').innerHTML = describeState(r);
+      return;
+    }
+    const value = feed.decode(r.o.returnData);
+    $('hf-src').textContent = `${src.label} · block ${num(r.o.probeHeight)}`;
+    $('hf-e1').classList.add('lit');
+    $('hf-probe').textContent = `source block ${num(r.o.probeHeight)}`;
+    $('hf-e2').classList.add('lit');
+    $('hf-att').textContent = `attested to ${num(r.frontier)}`;
+    $('hf-e3').classList.add('lit');
+    $('hf-cc').textContent = value;
+    $('hf-age').textContent = `${r.age} source blocks old · ${minutes(r.age)}`;
+    const v = $('hf-verdict');
+    const c = await compare(feed, r.o);
+    if (c.outcome === 'equal') {
+      v.textContent = '✓ VERIFIED · BYTE EQUAL, RECHECKED HERE';
+    } else if (c.outcome === 'archive') {
+      v.textContent = '✓ BYTE EQUAL AT PROOF TIME · ARCHIVE RPC NEEDED TO RECHECK HERE';
+      v.classList.add('warn');
+    } else if (c.outcome === 'diverged') {
+      v.textContent = '✗ DIVERGED';
+      v.className = 'verdict shown bad';
+    } else {
+      v.textContent = 'RECHECK UNAVAILABLE';
+      v.classList.add('warn');
+    }
+    v.classList.add('shown');
+  } catch (e) {
+    $('hf-src').innerHTML = `<span class="bad">${(e.shortMessage ?? e.message ?? '').slice(0, 80)}</span>`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The proof visualizer: one feed, four stages, every link real.
+
+const traced = { feed: null };
+
+function buildChooser() {
+  const box = $('proof-chooser');
+  const order = [...featuredFeeds(), ...C.feeds.filter((f) => !f.featured && f.name.includes('uniswap'))];
+  for (const feed of order) {
+    const b = el('button', 'chip', `${feed.title} <span class="muted">· ${C.sources[feed.chainId].label.split(' ')[1]}</span>`);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', 'false');
+    b.onclick = () => trace(feed);
+    b.dataset.feed = feed.name;
+    box.appendChild(b);
+  }
+}
+
+async function trace(feed) {
+  traced.feed = feed;
+  for (const b of document.querySelectorAll('#proof-chooser .chip')) b.setAttribute('aria-pressed', String(b.dataset.feed === feed.name));
+  for (const i of [1, 2, 3, 4]) $(`st-${i}`).classList.remove('lit');
+  const src = C.sources[feed.chainId];
+  const badge = $('oc-badge');
+  badge.className = 'badge';
+  badge.innerHTML = 'CHECKING…<small>comparing in your browser</small>';
+  $('oc-source').textContent = '—';
+  $('oc-cc').textContent = '—';
+
+  $('s1-title').textContent = feed.title;
+  $('s1-chain').textContent = src.label;
+  $('s1-value').textContent = 'reading…';
+  $('s1-contract').innerHTML = link(`${src.explorer}/address/${feed.target}`, short(feed.target));
+  $('s1-fn').textContent = feed.signature.replace(/ view returns.*$/, '').replace(/ returns.*$/, '');
+  $('s1-block').textContent = '—';
+  $('s1-time').textContent = '—';
+  $('s2-chain').textContent = src.label;
+  $('s2-status').textContent = '—';
+  $('s2-probe').innerHTML = link(`${src.explorer}/address/${src.probe}`, short(src.probe));
+  $('s2-tx').textContent = 'looking up…';
+  $('s2-prober').textContent = '—';
+  $('s3-chain').textContent = `${src.label} → Creditcoin`;
+  $('s3-status').textContent = '—';
+  $('s3-frontier').textContent = '—';
+  $('s3-height').textContent = '—';
+  $('s3-tx').textContent = 'looking up…';
+  $('s4-value').textContent = '—';
+  $('s4-registry').innerHTML = link(`${C.explorer}/address/${C.registry}`, short(C.registry));
+  $('s4-feed').textContent = '—';
+  $('s4-age').textContent = '—';
+
+  let r;
+  try {
+    r = await readFeed(feed);
+  } catch (e) {
+    $('s1-value').innerHTML = `<span class="bad">${(e.shortMessage ?? e.message ?? '').slice(0, 80)}</span>`;
+    return;
+  }
+  if (traced.feed !== feed) return;
+  $('s4-feed').textContent = r.id ? short(r.id, 14) : '—';
+  if (r.state !== 'ok') {
+    $('s1-value').innerHTML = describeState(r);
+    $('s4-value').innerHTML = describeState(r);
+    badge.className = 'badge warn';
+    badge.innerHTML = `${r.state === 'missing' ? 'NOT YET PROVEN' : 'REFUSED'}<small>nothing to compare</small>`;
+    return;
+  }
+  const { o } = r;
+  const value = feed.decode(o.returnData);
+
+  // 01 — the source read
+  $('s1-value').textContent = value;
+  $('s1-block').textContent = num(o.probeHeight);
+  $('s1-time').textContent = when(o.sourceTimestamp);
+  $('st-1').classList.add('lit');
+
+  // 02 — the probe transaction that carried it
+  $('s2-status').textContent = 'Probed event emitted';
+  $('s2-prober').innerHTML = link(`${src.explorer}/address/${o.prober}`, short(o.prober)) + ' <span class="muted">liveness only</span>';
+  $('st-2').classList.add('lit');
+  findProbeTx(feed, o).then((tx) => {
+    if (traced.feed !== feed) return;
+    $('s2-tx').innerHTML = tx
+      ? link(`${src.explorer}/tx/${tx}`, short(tx, 12))
+      : link(`${src.explorer}/address/${src.probe}#events`, 'see the probe’s events on the explorer', '');
+  });
+
+  // 03 — attestation
+  $('s3-frontier').textContent = num(r.frontier);
+  $('s3-height').textContent = num(o.probeHeight);
+  $('s3-status').textContent = 'Proof accepted';
+  $('st-3').classList.add('lit');
+  findProofTx(r.id).then((tx) => {
+    if (traced.feed !== feed) return;
+    $('s3-tx').innerHTML = tx
+      ? link(`${C.explorer}/tx/${tx}`, short(tx, 12))
+      : link(`${C.explorer}/address/${C.registry}?tab=logs`, 'see the registry’s logs on Blockscout', '');
+  });
+
+  // 04 — Creditcoin holds it
+  $('s4-value').textContent = value;
+  $('s4-age').textContent = `${r.age} source blocks · ${minutes(r.age)}`;
+  $('st-4').classList.add('lit');
+  $('oc-cc').textContent = o.returnData;
+
+  const c = await compare(feed, o);
+  if (traced.feed !== feed) return;
+  if (c.outcome === 'equal') {
+    $('oc-source').textContent = c.onSource;
+    badge.className = 'badge ok';
+    badge.innerHTML = '✓ BYTE IDENTICAL<small>rechecked from the source chain in this browser, at the proven block</small>';
+  } else if (c.outcome === 'diverged') {
+    $('oc-source').textContent = c.onSource;
+    badge.className = 'badge bad';
+    badge.innerHTML = '✗ DIVERGED<small>the source chain disagrees with Creditcoin at this block</small>';
+  } else if (c.outcome === 'archive') {
+    $('oc-source').innerHTML = '<span class="warn">archive state unavailable on this public RPC</span>';
+    badge.className = 'badge warn';
+    badge.innerHTML = '✓ BYTE EQUAL AT PROOF TIME<small>compared when proven and recorded in the evidence ledger. This public RPC will not serve the historical block; that is not a divergence. Sepolia feeds recheck live.</small>';
+  } else {
+    $('oc-source').innerHTML = `<span class="muted">${c.message.slice(0, 100)}</span>`;
+    badge.className = 'badge warn';
+    badge.innerHTML = 'RECHECK UNAVAILABLE<small>the source RPC did not answer</small>';
+  }
+}
+
+/** The source transaction whose log carries this observation: the Probed event at the proven block, for this call. */
+async function findProbeTx(feed, o) {
+  try {
+    const topic = probeInterface.getEvent('Probed').topicHash;
+    const logs = await sourceProviders[feed.chainId].getLogs({
+      address: C.sources[feed.chainId].probe,
+      fromBlock: Number(o.probeHeight),
+      toBlock: Number(o.probeHeight),
+      topics: [topic, ethers.zeroPadValue(feed.target, 32), keccak256(feed.calldata)],
+    });
+    return logs[0]?.transactionHash ?? null;
+  } catch {
+    return null;
   }
 }
 
 /**
- * The errors a consumer can refuse with, so the page can say why rather than showing a
- * bare failure. A refusal is the design working, and it is worth reading: a feed past
- * its age bound, a read that failed at the source, a breaker that has tripped. Showing
- * only "refused" throws away the most interesting thing on the page.
+ * The Creditcoin transaction that recorded this observation. The public RPC answers a
+ * 5,000-block log query in under a second and refuses a 40,000-block one, so this walks
+ * back in small windows, newest first, and stops at the first hit.
  */
+async function findProofTx(id) {
+  try {
+    const head = await creditcoin.getBlockNumber();
+    const topic = registry.interface.getEvent('ObservationRecorded').topicHash;
+    const span = 5000;
+    for (let to = head; to > head - 8 * span && to > 0; to -= span) {
+      const logs = await creditcoin.getLogs({ address: C.registry, fromBlock: Math.max(0, to - span + 1), toBlock: to, topics: [topic, id] });
+      if (logs.length) return logs[logs.length - 1].transactionHash;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Feeds: four cards first, the full table on request.
+
+function verifyButton(feed, o, cell) {
+  const btn = el('button', 'btn small', 'Verify');
+  btn.type = 'button';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'checking…';
+    const c = await compare(feed, o);
+    if (c.outcome === 'equal') {
+      cell.innerHTML = '<span class="pill ok">byte equal</span><div class="muted small" style="margin-top:6px">rechecked here</div>';
+    } else if (c.outcome === 'diverged') {
+      cell.innerHTML = `<span class="pill bad">diverged</span><div class="hex mono small" style="margin-top:6px">source ${short(c.onSource, 20)}</div>`;
+    } else if (c.outcome === 'archive') {
+      cell.innerHTML = '<span class="pill warn">archive RPC required</span>' +
+        `<div class="muted small" style="margin-top:6px">this public RPC will not serve block ${num(o.probeHeight)}. Equal at proof time; not a divergence.</div>`;
+    } else {
+      cell.innerHTML = `<span class="pill warn">recheck unavailable</span><div class="muted small" style="margin-top:6px">${c.message.slice(0, 100)}</div>`;
+      btn.disabled = false;
+      btn.textContent = 'Retry';
+      cell.appendChild(btn);
+    }
+  };
+  return btn;
+}
+
+async function loadFeaturedFeeds() {
+  const grid = $('featured');
+  grid.innerHTML = '';
+  for (const feed of featuredFeeds()) {
+    const src = C.sources[feed.chainId];
+    const card = el('article', 'card feed-card');
+    card.innerHTML =
+      `<div class="chain">${src.label}</div><h3>${feed.title}</h3>` +
+      `<div class="value">reading…</div>` +
+      `<dl><dt>Source block</dt><dd class="b">—</dd><dt>Age</dt><dd class="a">—</dd><dt>Proof</dt><dd class="p">—</dd></dl>` +
+      `<div class="actions"></div>`;
+    grid.appendChild(card);
+    const value = card.querySelector('.value');
+    const actions = card.querySelector('.actions');
+    try {
+      const r = await readFeed(feed);
+      if (r.state !== 'ok') {
+        value.innerHTML = describeState(r);
+        continue;
+      }
+      value.textContent = feed.decode(r.o.returnData);
+      card.querySelector('.b').textContent = num(r.o.probeHeight);
+      card.querySelector('.a').textContent = `${r.age} blocks · ${minutes(r.age)}`;
+      card.querySelector('.p').innerHTML = '<span class="ok">VERIFIED</span>';
+      const view = el('button', 'btn small', 'View proof');
+      view.type = 'button';
+      view.onclick = () => { trace(feed); document.getElementById('proof').scrollIntoView({ behavior: 'smooth' }); };
+      actions.appendChild(view);
+      actions.insertAdjacentHTML('beforeend',
+        `<a class="btn small" href="${src.explorer}/address/${feed.target}" target="_blank" rel="noopener">Source</a>` +
+        `<a class="btn small" href="${C.explorer}/address/${C.registry}" target="_blank" rel="noopener">Creditcoin</a>`);
+    } catch (e) {
+      value.innerHTML = `<span class="bad">${(e.shortMessage ?? e.message ?? '').slice(0, 80)}</span>`;
+    }
+  }
+}
+
+async function loadFeedTable() {
+  const tbody = document.querySelector('#feeds-table tbody');
+  tbody.innerHTML = '';
+  for (const feed of C.feeds) {
+    const src = C.sources[feed.chainId];
+    const row = el('tr');
+    row.appendChild(el('td', '', `<div>${feed.title}</div><div class="sub">${feed.note}</div><div class="sub mono">${feed.name}</div>`));
+    const sourceCell = el('td', '', `${src.label}<div class="sub mono">${feed.signature.replace(/ view returns.*$/, '')}</div>` +
+      link(`${src.explorer}/address/${feed.target}`, short(feed.target)));
+    const valueCell = el('td', 'muted', 'reading…');
+    const ageCell = el('td', 'muted', '—');
+    const checkCell = el('td');
+    row.append(sourceCell, valueCell, ageCell, checkCell);
+    tbody.appendChild(row);
+    try {
+      const r = await readFeed(feed);
+      if (r.state === 'not-attested') { sourceCell.innerHTML += '<div class="warn small">not attested here</div>'; valueCell.textContent = '—'; continue; }
+      sourceCell.innerHTML += `<div class="sub mono">key ${r.chainKey} here</div>`;
+      if (r.state !== 'ok') { valueCell.innerHTML = describeState(r); continue; }
+      valueCell.className = '';
+      valueCell.innerHTML = `<div>${feed.decode(r.o.returnData)}</div><div class="hex mono small">${short(r.o.returnData, 20)}</div><div class="sub mono">block ${num(r.o.probeHeight)}</div>`;
+      ageCell.className = r.age > 600 ? 'warn' : '';
+      ageCell.innerHTML = `${r.age} blocks<div class="sub">${minutes(r.age)}</div>`;
+      checkCell.appendChild(verifyButton(feed, r.o, checkCell));
+    } catch (e) {
+      valueCell.innerHTML = `<span class="bad">${(e.shortMessage ?? e.message ?? '').slice(0, 80)}</span>`;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Consumers. A refusal is the design working, so the card says why.
+
 const REFUSALS = [
   'error FeedStale(bytes32 feedId, uint256 age, uint256 maxAge)',
   'error StalePrice(uint256 age, uint256 maxAge)',
   'error FeedUnavailable(bytes32 feedId)',
   'error SourceCallReverted(bytes32 feedId)',
   'error AnswerTruncated(bytes32 feedId)',
+  'error FeedReadFailed(bytes32 feedId)',
+  'error FeedTruncated(bytes32 feedId)',
   'error CannotDetermineSolvency()',
   'error BreakerTripped(uint8 reason, uint64 since)',
   'error InvalidPrice(int256 answer)',
@@ -183,203 +454,138 @@ function explainRefusal(e) {
     try {
       const parsed = refusalInterface.parseError(data);
       if (parsed?.name === 'FeedStale' || parsed?.name === 'StalePrice') {
-        const [, age, maxAge] = parsed.args;
-        return `refused: ${age} blocks old, bound is ${maxAge}`;
+        const [, age, maxAge] = parsed.args.length === 3 ? parsed.args : [null, ...parsed.args];
+        return `STALE · ${age} source blocks old, bound is ${maxAge}`;
       }
-      if (parsed?.name === 'FeedUnavailable') return 'refused: never proven';
-      if (parsed?.name === 'SourceCallReverted') return 'refused: the source read failed';
-      if (parsed?.name === 'AnswerTruncated') return 'refused: the answer was truncated';
-      if (parsed?.name === 'CannotDetermineSolvency') return 'refused: an input is unavailable';
-      if (parsed?.name === 'BreakerTripped') return 'refused: the breaker is tripped';
-      if (parsed) return `refused: ${parsed.name}`;
+      if (parsed?.name === 'FeedUnavailable') return 'NOT YET PROVEN';
+      if (parsed?.name === 'SourceCallReverted' || parsed?.name === 'FeedReadFailed') return 'SOURCE CALL FAILED';
+      if (parsed?.name === 'AnswerTruncated' || parsed?.name === 'FeedTruncated') return 'TRUNCATED';
+      if (parsed?.name === 'CannotDetermineSolvency') return 'REFUSED · an input is unavailable';
+      if (parsed?.name === 'BreakerTripped') return 'REFUSED · the breaker is tripped';
+      if (parsed) return `REFUSED · ${parsed.name}`;
     } catch { /* fall through to the message */ }
   }
   const msg = e?.shortMessage ?? e?.message ?? '';
   const named = msg.match(/(FeedStale|StalePrice|FeedUnavailable|SourceCallReverted|AnswerTruncated|CannotDetermineSolvency|BreakerTripped)\(([^)]*)\)/);
   if (named) {
     if (named[1] === 'FeedStale' || named[1] === 'StalePrice') {
-      const parts = named[2].split(',').map((p) => p.trim());
-      const [age, maxAge] = parts.slice(-2);
-      return `refused: ${age} blocks old, bound is ${maxAge}`;
+      const [age, maxAge] = named[2].split(',').map((p) => p.trim()).slice(-2);
+      return `STALE · ${age} source blocks old, bound is ${maxAge}`;
     }
-    return `refused: ${named[1]}`;
+    return `REFUSED · ${named[1]}`;
   }
-  return 'refused';
+  return 'REFUSED';
 }
 
 const CONSUMERS = [
   {
-    label: 'Reserve backing',
+    title: 'Reserve / backing monitor',
+    tag: 'Cross-chain solvency checkpoint',
+    path: '<b>Sepolia</b> WETH held by Aave, aWETH issued<br>↓ Lens<br><b>Creditcoin</b> ReserveMonitor',
     address: () => C.reserveMonitor,
     abi: ['function ratio() view returns (uint256,uint256)', 'function isSolvent() view returns (bool)'],
     read: async (c) => {
-      const [value] = await c.ratio();
+      const [value, age] = await c.ratio();
       const solvent = await c.isSolvent();
-      return { v: (Number(value) / 1e18).toFixed(6), n: solvent ? 'covers what was issued' : 'SHORTFALL' };
+      return { v: `${(Number(value) / 1e18).toFixed(6)}×`, n: `${solvent ? 'backing covers what was issued' : 'SHORTFALL'} · ${age} source blocks old` };
     },
   },
   {
-    label: 'Lending market price',
+    title: 'AggregatorV3-compatible feed',
+    tag: 'Familiar interface, verified source',
+    path: '<b>Sepolia</b> Chainlink ETH/USD latestAnswer()<br>↓ Lens<br><b>Creditcoin</b> LensAggregatorV3 → LensMarket',
     address: () => C.market,
     abi: ['function price() view returns (uint256)', 'function PRICE_UNIT() view returns (uint256)'],
     read: async (c) => {
       const p = await c.price();
       const unit = await c.PRICE_UNIT();
-      return { v: `$${(Number(p) / Number(unit)).toFixed(2)}`, n: 'read through the Chainlink interface' };
+      return { v: `$${(Number(p) / Number(unit)).toFixed(2)}`, n: 'read through latestRoundData(); reverts when stale' };
     },
+    note: 'For time-averaged or slow-moving state only. Not intended for block-sensitive liquidation pricing. The value keeps Chainlink’s own trust assumptions; Lens removes the cross-chain reporter.',
   },
   {
-    label: 'Circuit breaker',
-    address: () => C.breaker,
-    abi: ['function status() view returns (bool,uint8)'],
-    read: async (c) => {
-      const [tripped, reason] = await c.status();
-      const why = ['', 'deviation', 'frontier regression', 'age'][Number(reason)] || '';
-      return { v: tripped ? 'tripped' : 'closed', n: tripped ? why : 'no owner, no pause key' };
-    },
-  },
-  {
-    label: 'Governance',
+    title: 'Historical voting weight',
+    tag: 'Governance from checkpointed history',
+    path: '<b>Sepolia</b> getPastVotes(holder, block)<br>↓ Lens<br><b>Creditcoin</b> VotePort',
     address: () => C.votePort,
-    abi: [
-      'function proposalCount() view returns (uint256)',
-      'function outcome(uint256) view returns (bool,uint256,uint256)',
-    ],
+    abi: ['function proposalCount() view returns (uint256)', 'function outcome(uint256) view returns (bool,uint256,uint256)'],
     read: async (c) => {
       const n = await c.proposalCount();
-      if (n === 0n) return { v: '0', n: 'no proposals yet' };
-      const [, forVotes] = await c.outcome(0n);
-      return { v: `${(Number(forVotes) / 1e18).toLocaleString()}`, n: 'weight proven from the source chain' };
-    },
-  },
-  {
-    label: 'Snapshot claims',
-    address: () => C.snapshotProver,
-    abi: ['function campaignCount() view returns (uint256)'],
-    read: async (c) => ({ v: String(await c.campaignCount()), n: 'eligibility proven, never published' }),
-  },
-  {
-    label: 'Feed escrow',
-    address: () => C.escrow,
-    abi: [
-      'function fundingOf(bytes32) view returns ((uint256 balance,uint256 rewardPerUpdate,uint64 minBlocksBetweenRewards,uint64 lastRewardedHeight,address funder,uint64 refundableAfter))',
-    ],
-    read: async (c) => {
-      // The ETH/USD feed is the one that is funded; a feed nobody funds still updates.
-      const f = await c.fundingOf('0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610');
-      if (f.funder === '0x0000000000000000000000000000000000000000') {
-        return { v: 'unfunded', n: 'proving works without any reward at all' };
-      }
-      return {
-        v: `${ethers.formatEther(f.balance)} tCTC`,
-        n: `${ethers.formatEther(f.rewardPerUpdate)} per update — paid to whoever proves it`,
-      };
+      if (n === 0n) return { v: '0 proposals', n: 'no proposals yet' };
+      const [, forVotes, against] = await c.outcome(n - 1n);
+      return { v: `${(Number(forVotes) / 1e18).toLocaleString()} for`, n: `${(Number(against) / 1e18).toLocaleString()} against · weight proven from the source chain, never supplied by the voter` };
     },
   },
 ];
 
 async function loadConsumers() {
-  const grid = document.getElementById('consumers');
+  const grid = $('consumers-grid');
   grid.innerHTML = '';
   for (const spec of CONSUMERS) {
-    const card = el('div', 'card');
-    card.appendChild(el('div', 'k', spec.label));
-    const v = el('div', 'v', '…');
-    const n = el('div', 'n', '');
-    card.append(v, n);
+    const card = el('article', 'card consumer');
+    card.innerHTML =
+      `<div class="k">${spec.tag}</div><h3 style="margin-top:6px">${spec.title}</h3>` +
+      `<div class="path">${spec.path}</div>` +
+      `<div class="live"><div class="k">Live result</div><div class="v">…</div><div class="n"></div></div>` +
+      (spec.note ? `<div class="note">${spec.note}</div>` : '') +
+      `<div class="actions" style="margin-top:12px">${link(`${C.explorer}/address/${spec.address()}`, short(spec.address()))}</div>`;
     grid.appendChild(card);
+    const v = card.querySelector('.live .v');
+    const n = card.querySelector('.live .n');
     try {
       const { v: value, n: note } = await spec.read(new Contract(spec.address(), spec.abi, creditcoin));
       v.textContent = value;
       n.textContent = note;
     } catch (e) {
-      // A refusal is the design working. Say what it refused for.
-      const why = explainRefusal(e);
-      v.innerHTML = '<span class="pill warn">fails closed</span>';
-      n.textContent = why;
+      v.innerHTML = '<span class="pill warn">refused</span>';
+      n.textContent = explainRefusal(e);
     }
   }
-}
 
-function loadAddresses() {
-  const rows = [
-    ['LensRegistry', C.registry],
-    ['LensAggregatorV3', C.aggregator],
-    ['ReserveMonitor', C.reserveMonitor],
-    ['LensMarket', C.market],
-    ['VotePort', C.votePort],
-    ['SnapshotProver', C.snapshotProver],
-    ['CircuitBreaker', C.breaker],
-  ];
-  const tbody = document.querySelector('#addresses tbody');
-  tbody.innerHTML = '';
-  for (const [name, addr] of rows) {
-    const tr = el('tr');
-    tr.appendChild(el('td', '', name));
-    tr.appendChild(el('td', 'mono',
-      `<a href="${C.explorer}/address/${addr}" target="_blank" rel="noopener">${addr}</a>`));
-    tbody.appendChild(tr);
+  const more = $('more-primitives');
+  for (const [name, addr] of [['CircuitBreaker', C.breaker], ['FeedEscrow', C.escrow], ['SnapshotProver', C.snapshotProver], ['LensAggregatorV3', C.aggregator]]) {
+    more.insertAdjacentHTML('beforeend', `<a class="pill" href="${C.explorer}/address/${addr}" target="_blank" rel="noopener">${name}</a>`);
   }
 }
 
-loadAddresses();
-loadFeeds();
-loadConsumers();
-setInterval(() => { loadFeeds(); loadConsumers(); }, 60000);
-
 // ---------------------------------------------------------------------------
-// Latency and cost, read from the chains rather than quoted from a document.
+// Attestation lag, read from the chains rather than quoted from a document.
 
 async function loadLatency() {
-  const grid = document.getElementById('latency');
+  const grid = $('latency');
   grid.innerHTML = '';
   const keys = await chainKeys();
-
   for (const [chainId, src] of Object.entries(C.sources)) {
     const chainKey = keys[chainId];
     const card = el('div', 'card');
-    card.appendChild(el('div', 'k', src.label));
-    const v = el('div', 'v', '…');
-    const n = el('div', 'n', '');
-    card.append(v, n);
+    card.innerHTML = `<div class="k">${src.label} · attestation lag</div><div class="v">…</div><div class="n"></div>`;
     grid.appendChild(card);
-
-    if (chainKey === undefined) {
-      v.textContent = '—';
-      n.textContent = 'not attested by this environment';
-      continue;
-    }
+    const v = card.querySelector('.v');
+    const n = card.querySelector('.n');
+    if (chainKey === undefined) { v.textContent = '—'; n.textContent = 'not attested by this environment'; continue; }
     try {
-      const frontier = Number(await registry.frontierOf(chainKey));
-      const head = await sourceProviders[chainId].getBlockNumber();
-      const lag = head - frontier;
+      const [frontier, head] = await Promise.all([registry.frontierOf(chainKey), sourceProviders[chainId].getBlockNumber()]);
+      const lag = Math.max(0, head - Number(frontier));
       v.textContent = `${lag} blocks`;
-      n.textContent = `~${((lag * 12) / 60).toFixed(1)} min behind — frontier ${frontier.toLocaleString()}`;
+      n.textContent = `~${((lag * 12) / 60).toFixed(1)} min behind · attested to ${num(frontier)}, head ${num(head)}`;
     } catch (e) {
       v.textContent = '—';
       n.textContent = (e.shortMessage ?? e.message ?? '').slice(0, 70);
     }
-  }
-
-  // Measured on this deployment; the commands that produce them are in docs/LATENCY.md.
-  for (const [label, value, note] of [
-    ['Probe, one feed', '29,380 gas', 'on the source chain'],
-    ['Prove to Creditcoin', '200,480 gas', 'one source transaction'],
-    ['Each extra log in it', '30,621 gas', 'the argument for probeMany'],
-  ]) {
-    const card = el('div', 'card');
-    card.appendChild(el('div', 'k', label));
-    card.appendChild(el('div', 'v', value));
-    card.appendChild(el('div', 'n', note));
-    grid.appendChild(card);
   }
 }
 
 // ---------------------------------------------------------------------------
 // Feed builder. Any view function on an attested chain is a feed; this works out which.
 
+const EXAMPLES = [
+  { label: 'WETH totalSupply()', chainId: 11155111, target: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14', sig: 'totalSupply() returns (uint256)', args: '' },
+  { label: 'stETH exchange rate', chainId: 1, target: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84', sig: 'getPooledEthByShares(uint256) returns (uint256)', args: '1000000000000000000' },
+  { label: 'Aave pool admin role', chainId: 11155111, target: '0x7F2bE3b178deeFF716CD6Ff03Ef79A1dFf360ddD', sig: 'isPoolAdmin(address) returns (bool)', args: '0xfA0e305E0f46AB04f00ae6b5f4560d61a2183E00' },
+];
+
 async function loadBuilder() {
-  const select = document.getElementById('b-chain');
+  const select = $('b-chain');
   const keys = await chainKeys();
   select.innerHTML = '';
   for (const [chainId, src] of Object.entries(C.sources)) {
@@ -388,18 +594,30 @@ async function loadBuilder() {
     if (keys[chainId] === undefined) o.disabled = true;
     select.appendChild(o);
   }
+  const ex = $('b-examples');
+  for (const e of EXAMPLES) {
+    const b = el('button', 'chip', e.label);
+    b.type = 'button';
+    b.onclick = () => {
+      select.value = String(e.chainId);
+      $('b-target').value = e.target;
+      $('b-sig').value = e.sig;
+      $('b-args').value = e.args;
+      $('b-go').click();
+    };
+    ex.appendChild(b);
+  }
 
-  document.getElementById('b-go').onclick = async () => {
-    const out = document.getElementById('b-out');
-    const chainId = document.getElementById('b-chain').value;
-    const target = document.getElementById('b-target').value.trim();
-    const sig = document.getElementById('b-sig').value.trim();
-    const rawArgs = document.getElementById('b-args').value.trim();
-
-    out.className = 'dim';
+  $('b-go').onclick = async () => {
+    const out = $('b-out');
+    const chainId = select.value;
+    const target = $('b-target').value.trim();
+    const sig = $('b-sig').value.trim();
+    const rawArgs = $('b-args').value.trim();
+    out.className = 'secondary small';
     out.textContent = 'working…';
     try {
-      if (!ethers.isAddress(target)) throw new Error('that is not an address');
+      if (!ethers.isAddress(target)) throw new Error('That is not an address.');
       const fn = sig.startsWith('function') ? sig : `function ${sig}`;
       const iface = new ethers.Interface([fn]);
       const fnName = fn.match(/function\s+(\w+)/)[1];
@@ -414,60 +632,65 @@ async function loadBuilder() {
       try {
         const raw = await sourceProviders[chainId].call({ to: target, data: calldata });
         sample = String(iface.decodeFunctionResult(fnName, raw)[0]);
-      } catch (e) {
-        out.className = 'bad';
+      } catch {
+        out.className = 'bad small';
         out.innerHTML = `That contract does not answer <code>${fnName}</code> on ${C.sources[chainId].label}.` +
-          `<div class="dim" style="margin-top:6px">A feed for a call the target rejects would never hold a value.</div>`;
+          '<div class="muted" style="margin-top:6px">A feed for a call the target rejects would never hold a value.</div>';
         return;
       }
-
-      const feedId = keccak256(
-        coder.encode(['uint64', 'address', 'bytes32'], [chainKey, target, keccak256(calldata)]),
-      );
-      const exists = await registry.hasObservation(feedId);
-
+      const id = feedId(chainKey, target, calldata);
+      const exists = await registry.hasObservation(id);
       out.className = '';
       out.innerHTML =
-        `<div style="margin-bottom:8px">Reads <b>${sample}</b> right now.</div>` +
-        `<table style="margin-bottom:10px"><tbody>` +
-        `<tr><td class="dim">chain key here</td><td class="mono">${chainKey}</td></tr>` +
-        `<tr><td class="dim">calldata</td><td class="mono hex">${calldata}</td></tr>` +
-        `<tr><td class="dim">feed id</td><td class="mono hex">${feedId}</td></tr>` +
-        `<tr><td class="dim">already proven</td><td>${exists ? 'yes — this feed is live' : 'not yet; a prober has to probe it once'}</td></tr>` +
-        `</tbody></table>` +
-        `<div class="k">to make it live</div>` +
-        `<pre class="mono">node prober/probe.mjs &lt;your-feed-name&gt;\nnode prober/prove.mjs &lt;tx-hash&gt; ${chainId}</pre>`;
+        `<div class="k">Current source value</div><div class="sample">${sample}</div>` +
+        `<dl><dt>calldata</dt><dd>${calldata}</dd><dt>feed id</dt><dd>${id}</dd>` +
+        `<dt>status</dt><dd>${exists ? '<span class="ok">ALREADY PROVEN</span> — this feed is live' : '<span class="warn">NOT YET PROVEN</span> — a prober has to probe it once'}</dd></dl>` +
+        `<div class="k" style="margin-top:14px">Make this feed live</div>` +
+        `<pre id="b-cmd">git clone https://github.com/Jennycruzy/lens && cd lens && npm install
+# add the feed to prober/lib/config.mjs, then:
+node prober/probe.mjs &lt;feed-name&gt;              # read it on ${C.sources[chainId].label}, emit it
+node prober/prove.mjs &lt;tx-hash&gt; ${chainId}   # prove it to Creditcoin, compare the bytes</pre>` +
+        `<div class="copyrow"><button class="btn small" data-copy="b-cmd" type="button">Copy</button></div>`;
+      wireCopyButtons(out);
     } catch (e) {
-      out.className = 'bad';
+      out.className = 'bad small';
       out.textContent = e.shortMessage ?? e.message;
     }
   };
 }
 
 // ---------------------------------------------------------------------------
-// Integrate box.
+// Integration snippets and tabs.
 
 function loadSnippets() {
-  const ethUsd = C.feeds.find((f) => f.name.includes('ethUsd'));
-  const feedId = '0x2c73f71f50a0b9d99ad60eec631f085b9c725adcf52e7e02011d2d197411b610';
+  const steth = C.feeds.find((f) => f.name === 'mainnet.steth.rate');
 
-  document.getElementById('snippet-native').textContent =
+  $('snippet-native').textContent =
 `import {LensConsumer} from "lens/contracts/src/LensConsumer.sol";
+import {LensRegistry} from "lens/contracts/src/LensRegistry.sol";
 
 contract YourContract is LensConsumer {
-    constructor(LensRegistry lens) LensConsumer(lens) {}
+    uint64 private immutable SOURCE_KEY;
 
-    function _defaultChainKey() internal pure override returns (uint64) { return 1; }
+    // Resolve sourceKey from Creditcoin's ChainInfo for the environment you deploy to.
+    // Chain keys are environment-local: never copy one from another environment.
+    constructor(LensRegistry lens, uint64 sourceKey) LensConsumer(lens) {
+        SOURCE_KEY = sourceKey;
+    }
 
-    function price() external view returns (uint256) {
-        // 300 source blocks, about an hour. Below ~50 can never be satisfied:
-        // the frontier trails the source head by 30 to 40.
-        return _latestUint(${feedId}, 300);
+    function _defaultChainKey() internal view override returns (uint64) {
+        return SOURCE_KEY;
+    }
+
+    function stethRate(bytes32 feedId) external view returns (uint256) {
+        // 2400 source blocks, about eight hours: a staking rate moves basis points a day.
+        // Below ~50 can never be satisfied — the frontier trails the head by 30 to 40.
+        return _latestUint(feedId, 2400);
     }
 }`;
 
-  document.getElementById('snippet-chainlink').textContent =
-`// Already written against Chainlink? Change one address.
+  $('snippet-chainlink').textContent =
+`// Already written against AggregatorV3Interface? Point it at the adapter.
 AggregatorV3Interface feed = AggregatorV3Interface(
     ${C.aggregator}
 );
@@ -475,29 +698,83 @@ AggregatorV3Interface feed = AggregatorV3Interface(
 require(block.timestamp - updatedAt <= maxAge, "stale");
 
 // updatedAt is the SOURCE chain's clock, so this measures the real age
-// of the number rather than when the proof happened to land here.`;
+// of the number rather than when the proof happened to land here.
+// A stale feed reverts inside latestRoundData() before you get this far.`;
 
-  document.getElementById('snippet-js').textContent =
-`import { Lens } from '@lens/sdk';
+  $('snippet-js').textContent =
+`import { Lens } from '@jennycruzy/lens-sdk';
 
 const lens = new Lens('${C.creditcoinRpc}', '${C.registry}');
 
-const price = await lens.readValue(
-  ${ethUsd?.chainId ?? 11155111},   // native chain id, never a chain key
-  '${ethUsd?.target ?? ''}',
-  'latestAnswer() returns (int256)', [], 600,
-);`;
+// The stETH exchange rate, read on Ethereum mainnet and proven to Creditcoin.
+const rate = await lens.readValue(
+  ${steth?.chainId ?? 1},                                   // native chain id, never a chain key
+  '${steth?.target ?? ''}',
+  'getPooledEthByShares(uint256) returns (uint256)',
+  ['1000000000000000000'],
+  2400,                                // largest acceptable age, in source blocks
+);
 
-  for (const btn of document.querySelectorAll('[data-copy]')) {
+// Or take the explicit refusal instead of a throw:
+const r = await lens.read(1, target, callData, 2400);
+if (!r.ok) console.log(r.refusal);     // missing | call-reverted | truncated | stale`;
+
+  for (const tab of document.querySelectorAll('.tab')) {
+    tab.onclick = () => {
+      for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t === tab));
+      for (const p of document.querySelectorAll('.panel')) p.hidden = p.id !== `panel-${tab.dataset.tab}`;
+    };
+  }
+  wireCopyButtons(document);
+}
+
+function wireCopyButtons(root) {
+  for (const btn of root.querySelectorAll('[data-copy]')) {
     btn.onclick = async () => {
-      await navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).textContent);
-      const was = btn.textContent;
-      btn.textContent = 'copied';
-      setTimeout(() => (btn.textContent = was), 1200);
+      try {
+        await navigator.clipboard.writeText($(btn.dataset.copy).textContent);
+        const was = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => (btn.textContent = was), 1200);
+      } catch {
+        btn.textContent = 'Select and copy';
+      }
     };
   }
 }
 
+// ---------------------------------------------------------------------------
+// Evidence: the places to look without us in the middle.
+
+function loadEvidence() {
+  const gh = 'https://github.com/Jennycruzy/lens/blob/main';
+  const items = [
+    ['Registry on CC3', C.registry, `${C.explorer}/address/${C.registry}`],
+    ['StateProbe on Ethereum mainnet', C.sources[1]?.probe, `${C.sources[1]?.explorer}/address/${C.sources[1]?.probe}`],
+    ['StateProbe on Sepolia', C.sources[11155111]?.probe, `${C.sources[11155111]?.explorer}/address/${C.sources[11155111]?.probe}`],
+    ['A mainnet proof transaction', '0xf34bfdb6…8b2d0 · three observations, one source tx', `${C.explorer}/tx/0xf34bfdb6b4536f54c3d87a56d3d63d00d92094596072bef7315fd8144ae8b2d0`],
+    ['Evidence ledger', 'every address and transaction behind a claim', `${gh}/docs/EVIDENCE.md`],
+    ['Security model', 'six checks, and the attack each one stops', `${gh}/docs/SECURITY.md`],
+    ['Latency measurements', 'lag and gas, with the receipts', `${gh}/docs/LATENCY.md`],
+    ['Limits', 'what Lens cannot do, volunteered', `${gh}/docs/LIMITS.md`],
+    ['GitHub', 'contracts, prober, SDK, tests', 'https://github.com/Jennycruzy/lens'],
+  ];
+  const grid = $('evidence-grid');
+  for (const [k, v, href] of items) {
+    if (!href || href.includes('undefined')) continue;
+    grid.insertAdjacentHTML('beforeend', `<a class="card" href="${href}" target="_blank" rel="noopener"><div class="k">${k}</div><div class="mono">${v}</div></a>`);
+  }
+}
+
+loadStatus();
+loadHeroFlow();
+buildChooser();
+trace(featuredFeeds()[0] ?? C.feeds[0]);
+loadFeaturedFeeds();
+loadFeedTable();
+loadConsumers();
 loadLatency();
 loadBuilder();
 loadSnippets();
+loadEvidence();
+setInterval(() => { loadStatus(); loadFeaturedFeeds(); loadFeedTable(); loadLatency(); }, 60000);

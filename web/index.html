@@ -3,148 +3,331 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lens — verified cross-chain state on Creditcoin</title>
-<style>
-  :root {
-    --bg: #0d1117; --panel: #161b22; --line: #26303d; --ink: #e6edf3;
-    --dim: #8b949e; --ok: #3fb950; --bad: #f85149; --accent: #58a6ff; --warn: #d29922;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
-  header { padding: 40px 24px 28px; border-bottom: 1px solid var(--line); }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
-  .tag { color: var(--dim); font-size: 15px; margin: 0 0 18px; }
-  .claim { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
-    border-radius: 6px; padding: 14px 16px; margin-top: 18px; }
-  .claim b { color: var(--ink); }
-  main { padding: 26px 24px 60px; }
-  h2 { font-size: 17px; margin: 34px 0 12px; letter-spacing: -0.01em; }
-  h2:first-child { margin-top: 0; }
-  .sub { color: var(--dim); font-size: 13.5px; margin: -6px 0 14px; }
-  table { width: 100%; border-collapse: collapse; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-  th, td { text-align: left; padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase;
-    letter-spacing: 0.04em; background: #12171f; }
-  tr:last-child td { border-bottom: none; }
-  .scroll { overflow-x: auto; }
-  .ok { color: var(--ok); } .bad { color: var(--bad); } .dim { color: var(--dim); } .warn { color: var(--warn); }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px;
-    border: 1px solid var(--line); }
-  .pill.ok { border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.1); }
-  .pill.bad { border-color: rgba(248,81,73,.4); background: rgba(248,81,73,.1); }
-  .pill.warn { border-color: rgba(210,153,34,.4); background: rgba(210,153,34,.1); }
-  button { background: #21262d; color: var(--ink); border: 1px solid var(--line);
-    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-  button:hover { background: #2b3440; }
-  button:disabled { opacity: .5; cursor: default; }
-  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 15px; }
-  .card .k { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-  .card .v { font-size: 21px; margin-top: 5px; letter-spacing: -0.01em; }
-  .card .n { color: var(--dim); font-size: 12.5px; margin-top: 5px; }
-  .hex { color: var(--dim); word-break: break-all; }
-  footer { border-top: 1px solid var(--line); padding: 22px 24px 40px; color: var(--dim); font-size: 13px; }
-  .builder { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .builder label { display: flex; flex-direction: column; gap: 5px; color: var(--dim); font-size: 12px;
-    text-transform: uppercase; letter-spacing: .04em; }
-  .builder input, .builder select { background: #0d1117; color: var(--ink); border: 1px solid var(--line);
-    border-radius: 5px; padding: 8px 9px; font: 12.5px ui-monospace, Menlo, monospace; text-transform: none; }
-  pre { background: #0d1117; border: 1px solid var(--line); border-radius: 5px; padding: 11px 12px;
-    overflow-x: auto; margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
-</style>
+<title>Lens — verified cross-chain contract reads for Creditcoin</title>
+<meta name="description" content="Creditcoin can prove a transaction happened. Lens lets it verify what a contract returned. Live proofs from Ethereum to Creditcoin, checked in your browser." />
+<meta property="og:title" content="Lens — verified cross-chain contract reads for Creditcoin" />
+<meta property="og:description" content="Ethereum computes it. Attestcoin proves it. Creditcoin can act on it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<header><div class="wrap">
-  <h1>Lens</h1>
-  <p class="tag">Verified cross-chain state on Creditcoin. No oracle, no bridge, no trusted party.</p>
-  <div class="claim">
-    A prober is trusted for <b>liveness, never correctness</b>. A forged probe fails at the
-    precompile. A withheld probe causes <b>refusal, never a wrong answer</b>.
-  </div>
-</div></header>
 
-<main class="wrap">
-  <h2>Feeds</h2>
-  <p class="sub">
-    Each row reads the value from Creditcoin and calls the same contract with the same
-    calldata on the source chain, at the exact block that was proven. They must be
-    byte-identical. Press verify to run that comparison in your browser now.
-  </p>
-  <div class="scroll"><table id="feeds">
-    <thead><tr>
-      <th>Feed</th><th>Source</th><th>Value on Creditcoin</th><th>Age</th><th>Check</th>
-    </tr></thead>
-    <tbody><tr><td colspan="5" class="dim">loading…</td></tr></tbody>
-  </table></div>
-
-  <h2>Consumers</h2>
-  <p class="sub">Contracts on Creditcoin acting on proven data, read live.</p>
-  <div class="grid" id="consumers"><div class="card"><div class="k">loading</div></div></div>
-
-  <h2>Latency and cost</h2>
-  <p class="sub">
-    Read now, from the chains. The lag is why Lens carries time-averaged and checkpointed
-    values and not spot prices.
-  </p>
-  <div class="grid" id="latency"><div class="card"><div class="k">measuring</div></div></div>
-
-  <h2>Build a feed</h2>
-  <p class="sub">
-    Any view function on an attested chain is a feed. Fill this in and it computes the
-    identifier, reads the target now, and gives you the calldata a prober needs — no
-    wallet, nothing to install.
-  </p>
-  <div class="card">
-    <div class="builder">
-      <label>Chain
-        <select id="b-chain"></select>
-      </label>
-      <label>Contract address
-        <input id="b-target" placeholder="0x…" spellcheck="false" />
-      </label>
-      <label>Function signature
-        <input id="b-sig" value="totalSupply() returns (uint256)" spellcheck="false" />
-      </label>
-      <label>Arguments, comma separated
-        <input id="b-args" placeholder="leave empty for none" spellcheck="false" />
-      </label>
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="#top">Lens</a>
+    <div class="nav-links">
+      <a href="#proof">Live proof</a>
+      <a href="#feeds">Feeds</a>
+      <a href="#consumers">Consumers</a>
+      <a href="#build">Build a feed</a>
+      <a href="#integrate">Integrate</a>
+      <a href="#evidence">Evidence</a>
+      <a href="https://github.com/Jennycruzy/lens" target="_blank" rel="noopener">GitHub</a>
     </div>
-    <button id="b-go" style="margin-top:12px">build it</button>
-    <div id="b-out" class="dim" style="margin-top:12px;font-size:13px">
-      Try the Sepolia WETH contract, <code>0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14</code>.
+    <span id="net-status" class="pill" aria-live="polite"><span class="dot"></span> CC3 testnet</span>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Attestcoin state layer</div>
+      <h1>Creditcoin can prove a transaction happened. <span>Lens lets it verify what a contract returned.</span></h1>
+      <p class="lede">
+        Lens turns view-function responses on Ethereum into attestable events, then verifies
+        and consumes those results on Creditcoin.
+        <b>No bridge. No trusted cross-chain reporter. No protocol change.</b>
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#proof">Watch a live proof</a>
+        <a class="btn" href="#build">Build a feed</a>
+        <a class="link-arrow" href="https://github.com/Jennycruzy/lens" target="_blank" rel="noopener">View source on GitHub →</a>
+      </div>
+    </div>
+    <div class="flow" id="hero-flow" aria-label="A live value flowing from Ethereum to Creditcoin">
+      <div class="node"><div class="k">Ethereum mainnet · Lido stETH</div><div class="v mono" id="hf-call">getPooledEthByShares(1e18)</div><div class="n" id="hf-src">reading…</div></div>
+      <div class="edge" id="hf-e1">▼</div>
+      <div class="node"><div class="k">StateProbe</div><div class="v" id="hf-probe">—</div><div class="n">the EVM performs the read and emits it</div></div>
+      <div class="edge" id="hf-e2">▼</div>
+      <div class="node"><div class="k">Attestcoin</div><div class="v" id="hf-att">—</div><div class="n">transaction and log proven included</div></div>
+      <div class="edge" id="hf-e3">▼</div>
+      <div class="node"><div class="k">Creditcoin · LensRegistry</div><div class="v" id="hf-cc">—</div><div class="n" id="hf-age"></div></div>
+      <div class="verdict" id="hf-verdict">✓ VERIFIED</div>
     </div>
   </div>
+</header>
 
-  <h2>Integrate</h2>
-  <p class="sub">Two ways in. The second needs no change to a protocol already written against Chainlink.</p>
-  <div class="scroll"><div class="card">
-    <div class="k">Solidity, native</div>
-    <pre id="snippet-native" class="mono"></pre>
-    <button data-copy="snippet-native">copy</button>
+<main>
 
-    <div class="k" style="margin-top:18px">Solidity, Chainlink-compatible</div>
-    <pre id="snippet-chainlink" class="mono"></pre>
-    <button data-copy="snippet-chainlink">copy</button>
+<section id="proof">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Live proof</div>
+      <h2>Watch Ethereum state become Creditcoin state.</h2>
+      <p>The source chain computes the answer. Lens proves what it returned. Every number below is read from the chains as you look at it.</p>
+    </div>
+    <div class="chooser" id="proof-chooser" role="group" aria-label="Choose a feed to trace"></div>
+    <div class="pipeline" id="pipeline">
+      <article class="stage" id="st-1">
+        <div class="num">01 / SOURCE</div>
+        <h3 id="s1-title">—</h3>
+        <div class="chain" id="s1-chain"></div>
+        <div class="big" id="s1-value">reading…</div>
+        <dl>
+          <dt>contract</dt><dd id="s1-contract"></dd>
+          <dt>function</dt><dd id="s1-fn"></dd>
+          <dt>block</dt><dd id="s1-block"></dd>
+          <dt>time</dt><dd id="s1-time"></dd>
+        </dl>
+        <div class="say">A view call. The contract's own EVM computes this.</div>
+      </article>
+      <article class="stage" id="st-2">
+        <div class="num">02 / PROBE TRANSACTION</div>
+        <h3>StateProbe</h3>
+        <div class="chain" id="s2-chain"></div>
+        <div class="big" id="s2-status">—</div>
+        <dl>
+          <dt>probe</dt><dd id="s2-probe"></dd>
+          <dt>transaction</dt><dd id="s2-tx"></dd>
+          <dt>event</dt><dd>Probed(target, callHash, …, returnData)</dd>
+          <dt>prober</dt><dd id="s2-prober"></dd>
+        </dl>
+        <div class="say">The EVM performs the staticcall. The prober never supplies the value — it only chooses when to ask.</div>
+      </article>
+      <article class="stage" id="st-3">
+        <div class="num">03 / ATTESTCOIN</div>
+        <h3>Proof</h3>
+        <div class="chain" id="s3-chain"></div>
+        <div class="big" id="s3-status">—</div>
+        <dl>
+          <dt>attested to</dt><dd id="s3-frontier"></dd>
+          <dt>proven height</dt><dd id="s3-height"></dd>
+          <dt>proof tx</dt><dd id="s3-tx"></dd>
+        </dl>
+        <div class="say">Attestcoin proves the transaction and its log were included in the attested source chain. It proves inclusion, not arbitrary storage.</div>
+      </article>
+      <article class="stage" id="st-4">
+        <div class="num">04 / CREDITCOIN</div>
+        <h3>LensRegistry</h3>
+        <div class="chain">Creditcoin CC3 testnet</div>
+        <div class="big" id="s4-value">—</div>
+        <dl>
+          <dt>registry</dt><dd id="s4-registry"></dd>
+          <dt>feed id</dt><dd id="s4-feed"></dd>
+          <dt>age</dt><dd id="s4-age"></dd>
+        </dl>
+        <div class="say">Stored with the source block and the source clock. A consumer reads it with a freshness bound, or is refused.</div>
+      </article>
+    </div>
+    <div class="outcome" aria-live="polite">
+      <div class="bytes">
+        <div class="k">Source bytes</div><div class="h" id="oc-source">—</div>
+        <div class="k">Creditcoin bytes</div><div class="h" id="oc-cc">—</div>
+      </div>
+      <div class="badge" id="oc-badge">CHECKING…<small>comparing in your browser</small></div>
+    </div>
+  </div>
+</section>
 
-    <div class="k" style="margin-top:18px">JavaScript</div>
-    <pre id="snippet-js" class="mono"></pre>
-    <button data-copy="snippet-js">copy</button>
-  </div></div>
+<section class="tight">
+  <div class="wrap">
+    <p class="sentence">The caller can choose when to ask. <span>It cannot choose the answer.</span></p>
+    <div class="cards">
+      <div class="card"><h3>Correctness</h3><p>The value comes from the source-chain EVM. A forged probe was never in an attested block, so its proof fails.</p></div>
+      <div class="card"><h3>Liveness</h3><p>Anyone can submit a probe. Withholding only makes the feed stale — it can never make it wrong.</p></div>
+      <div class="card"><h3>Failure</h3><p>Stale, failed or truncated reads are refused instead of guessed.</p></div>
+    </div>
+    <p style="margin-top:18px"><a href="https://github.com/Jennycruzy/lens/blob/main/docs/SECURITY.md" target="_blank" rel="noopener">Read the complete security model →</a></p>
+  </div>
+</section>
 
-  <h2>Deployment</h2>
-  <div class="scroll"><table id="addresses"><tbody></tbody></table></div>
+<section id="why">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Why Lens exists</div>
+      <h2>Useful state is often a view call, not a transaction.</h2>
+    </div>
+    <div class="compare">
+      <div class="card">
+        <div class="k">Attestcoin natively</div>
+        <h3 style="margin-top:8px">Prove</h3>
+        <ul>
+          <li>This transaction was included.</li>
+          <li>This event was emitted.</li>
+          <li>This payment happened.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="k">Lens adds</div>
+        <h3 style="margin-top:8px">Verify</h3>
+        <ul>
+          <li>What did this view function return?</li>
+          <li>What were this vault's reserves?</li>
+          <li>What was voting power at block N?</li>
+          <li>Does this address hold this role?</li>
+          <li>What is this checkpointed exchange rate?</li>
+        </ul>
+      </div>
+    </div>
+    <p class="bottomline"><b>Lens turns read-only state into something Attestcoin can already prove.</b> No protocol upgrade required. There are no storage proofs here and none are claimed: the contract answers, the answer is emitted, the emission is proven.</p>
+    <div class="card" style="margin-top:22px;padding:12px;overflow:hidden">
+      <img src="./assets/lens-flow.svg" alt="Source contract → StateProbe → Probed event → Attestcoin proof → LensRegistry → consumers" style="display:block;width:100%;height:auto" />
+    </div>
+  </div>
+</section>
+
+<section id="feeds">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Live feeds</div>
+      <h2>Real values, read from Creditcoin right now.</h2>
+      <p>Each one was computed on its source chain and proven here. Verify re-runs the same call at the proven block in your browser and compares the bytes.</p>
+    </div>
+    <div class="featured" id="featured"></div>
+    <details class="all">
+      <summary>View all verified feeds</summary>
+      <div class="scroll" style="margin-top:12px"><table id="feeds-table">
+        <thead><tr><th>Feed</th><th>Source</th><th>Value on Creditcoin</th><th>Age</th><th>Check</th></tr></thead>
+        <tbody><tr><td colspan="5" class="muted">loading…</td></tr></tbody>
+      </table></div>
+    </details>
+  </div>
+</section>
+
+<section id="failclosed" class="tight">
+  <div class="wrap">
+    <p class="mantra">A missing value is not zero. <span>A stale value is not current.</span><span>A failed call is not data.</span></p>
+    <div class="refuse">
+      <div class="card"><div class="state">MISSING</div><div class="why">never proven</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">FAILED</div><div class="why">source call reverted</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">TRUNCATED</div><div class="why">answer incomplete</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+      <div class="card"><div class="state">STALE</div><div class="why">outside the consumer's bound</div><div class="arrow">↓</div><div class="result">REFUSE</div></div>
+    </div>
+    <p class="secondary small" style="margin-top:14px">Four distinct errors, because a caller that cannot tell them apart cannot react correctly to any of them. Live refusals appear on the consumer cards below, with the reason.</p>
+  </div>
+</section>
+
+<section id="consumers">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Consumers</div>
+      <h2>Contracts on Creditcoin acting on proven state.</h2>
+      <p>Read live. When a consumer refuses, the card says why — that is the design working.</p>
+    </div>
+    <div class="cards" id="consumers-grid"></div>
+    <div class="more" id="more-primitives"><span>More primitives, deployed and tested:</span></div>
+  </div>
+</section>
+
+<section id="limits" class="tight">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Limits</div>
+      <h2>Built for finalized state, not instant state.</h2>
+      <p>The attestation frontier trails the source head by minutes. A feed is only honest if its meaning survives that lag.</p>
+    </div>
+    <div class="fit">
+      <div class="card good"><div class="k">Good fit</div><ul>
+        <li>30-minute observations and TWAP inputs</li>
+        <li>liquid-staking exchange rates</li>
+        <li>reserves, backing and total supply</li>
+        <li>historical voting weight</li>
+        <li>roles, access lists and pause state</li>
+        <li>checkpointed values of any kind</li>
+      </ul></div>
+      <div class="card wrong"><div class="k">Wrong fit</div><ul>
+        <li>instantaneous AMM quotes</li>
+        <li>perp mark prices</li>
+        <li>block-sensitive liquidation engines</li>
+        <li>sub-minute trading signals</li>
+      </ul></div>
+    </div>
+    <div class="lag" id="latency"></div>
+    <p class="muted small" style="margin-top:10px">Lag is measured live above from the registry's attested frontier against each source chain's head. Gas figures are in <a href="https://github.com/Jennycruzy/lens/blob/main/docs/LATENCY.md" target="_blank" rel="noopener">docs/LATENCY.md</a>, each with the transaction it came from.</p>
+  </div>
+</section>
+
+<section id="build">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Build a feed</div>
+      <h2>Any view function on an attested chain is a feed.</h2>
+      <p>No wallet, nothing to install. This computes the feed identifier the registry would use, reads the target now, and gives a prober what it needs.</p>
+    </div>
+    <div class="steps">
+      <div class="card step">
+        <div class="num">STEP 1</div><h3>Choose the source chain</h3>
+        <div class="field"><label for="b-chain">Chain</label><select id="b-chain"></select></div>
+        <p class="muted small" style="margin-top:10px">Only chains this Creditcoin environment attests are offered. The chain key is looked up from the network, never typed.</p>
+      </div>
+      <div class="card step">
+        <div class="num">STEP 2</div><h3>Describe the read</h3>
+        <div class="field"><label for="b-target">Contract address</label><input id="b-target" placeholder="0x…" spellcheck="false" autocomplete="off" /></div>
+        <div class="field"><label for="b-sig">Function signature</label><input id="b-sig" value="totalSupply() returns (uint256)" spellcheck="false" autocomplete="off" /></div>
+        <div class="field"><label for="b-args">Arguments, comma separated</label><input id="b-args" placeholder="leave empty for none" spellcheck="false" autocomplete="off" /></div>
+        <div class="examples" id="b-examples" aria-label="Examples"></div>
+        <div style="margin-top:14px"><button class="btn primary" id="b-go" type="button">Check this feed</button></div>
+      </div>
+      <div class="card step result">
+        <div class="num">STEP 3</div><h3>What you get</h3>
+        <div id="b-out" class="secondary small" style="margin-top:10px">Fill in a contract and a function, or pick an example.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="integrate">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Integrate</div>
+      <h2>Three ways in.</h2>
+      <p>Every read carries a freshness bound; there is no version without one.</p>
+    </div>
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="solidity" type="button">Solidity</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="aggregator" type="button">AggregatorV3</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="js" type="button">JavaScript</button>
+      </div>
+      <div class="panel" id="panel-solidity" role="tabpanel">
+        <p>Inherit <code>LensConsumer</code>. Resolve <code>sourceKey</code> from Creditcoin's ChainInfo for the environment you deploy to — chain keys are local to one environment, so never copy one from an example.</p>
+        <pre id="snippet-native"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-native" type="button">Copy</button></div>
+      </div>
+      <div class="panel" id="panel-aggregator" role="tabpanel" hidden>
+        <p><code>LensAggregatorV3</code> exposes an eligible Lens feed through the familiar <code>AggregatorV3Interface</code>, so contracts already written against it can consume slow-moving or time-averaged cross-chain state with minimal work. For that class of state only — not block-sensitive spot pricing or fast liquidations. A value whose original source is Chainlink keeps Chainlink's own trust assumptions; Lens removes the need for a trusted cross-chain reporter.</p>
+        <pre id="snippet-chainlink"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-chainlink" type="button">Copy</button></div>
+      </div>
+      <div class="panel" id="panel-js" role="tabpanel" hidden>
+        <p>The SDK takes native chain ids and resolves Attestcoin chain keys for the current Creditcoin environment. It refuses explicitly and lets you re-check the bytes yourself.</p>
+        <pre id="snippet-js"></pre>
+        <div class="copyrow"><button class="btn small" data-copy="snippet-js" type="button">Copy</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="evidence">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Evidence</div>
+      <h2>Don't trust this page. Check it.</h2>
+      <p>Nothing here is served by us: every value is read from Creditcoin's public RPC and the source chain's, in your browser. These are the places to look without us in the middle.</p>
+    </div>
+    <div class="evidence" id="evidence-grid"></div>
+  </div>
+</section>
+
 </main>
 
-<footer class="wrap">
-  Nothing on this page is cached or served by us: it is read from
-  <code>rpc.cc3-testnet.creditcoin.network</code> and from the source chain's own public RPC,
-  in your browser. The comparison is the claim.
+<footer>
+  <div class="wrap">
+    <div>Lens · verified cross-chain contract reads for Creditcoin · MIT</div>
+    <div>Ethereum computes it. Attestcoin proves it. Creditcoin can act on it.</div>
+  </div>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>

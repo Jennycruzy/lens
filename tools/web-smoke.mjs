@@ -8,7 +8,7 @@
  * ships actually resolve against the live chains — which is every way the page can be
  * wrong apart from its layout.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { JsonRpcProvider, Contract, AbiCoder, Interface, keccak256 } from 'ethers';
 
 // Load the page's config by evaluating it the way the browser would.
@@ -39,9 +39,8 @@ const freshnessSelectors = Object.fromEntries(
 );
 const marketInterface = new Interface(['error StalePrice(uint256,uint256)']);
 freshnessSelectors[marketInterface.getError('StalePrice').selector.toLowerCase()] = 'StalePrice';
-// The currently documented consumer address predates the hardened ABI and returns its
-// older fail-closed error. Keep that refusal visible rather than calling it a healthy value.
-freshnessSelectors['0xbad04e0e'] = 'CannotDetermineSolvency (legacy deployment)';
+// ReserveMonitor refuses with its own error when either leg of the ratio is unavailable.
+freshnessSelectors['0xbad04e0e'] = 'CannotDetermineSolvency';
 function revertData(error) {
   for (const candidate of [error?.data, error?.revert?.data, error?.info?.error?.data, error?.error?.data]) {
     if (typeof candidate === 'string' && candidate.startsWith('0x')) return candidate;
@@ -61,6 +60,21 @@ const say = (ok, line) => {
   if (!ok) failures++;
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${line}`);
 };
+
+// The page's static shape: every file it loads exists, every feed carries what the page
+// reads, and the generated file is the generator's output.
+console.log('\nThe page itself\n');
+const html = readFileSync(new URL('../web/index.html', import.meta.url), 'utf8');
+for (const ref of ['./styles.css', './app.js', './config.js', './assets/lens-flow.svg']) {
+  const present = existsSync(new URL(`../web/${ref.slice(2)}`, import.meta.url));
+  say(html.includes(ref) && present, `${ref} is referenced by index.html and exists`);
+}
+say(C.feeds.every((f) => f.title && f.signature && f.note !== undefined && typeof f.decode === 'function'),
+  'every feed carries a title, a signature, a note and a decoder');
+say(C.feeds.filter((f) => f.featured).length === 4, 'four feeds are featured');
+say(Object.values(C.sources).every((s) => /^0x[0-9a-fA-F]{40}$/.test(s.probe)), 'every source chain names its probe');
+say(!C.feeds.find((f) => f.name.includes('uniswap')).decode('0x' + '00'.repeat(256)).includes('$'),
+  'the Uniswap observe() feed is never rendered as a dollar price');
 
 console.log('\nFeeds the page shows\n');
 for (const feed of C.feeds) {

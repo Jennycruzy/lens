@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" width="960" height="250" role="img" aria-labelledby="t d">
+  <title id="t">How a Lens proof flows</title>
+  <desc id="d">A contract on the source chain is read by StateProbe with a staticcall, which emits a Probed event. Attestcoin proves that transaction to Creditcoin, where LensRegistry stores the bytes and consumers read them.</desc>
+  <defs>
+    <style>
+      .box { fill: #0e1310; stroke: #344338; stroke-width: 1.2; }
+      .box.cc { stroke: #9eea6a; }
+      .lbl { font: 600 10.5px 'IBM Plex Mono', ui-monospace, monospace; fill: #6f7b72; letter-spacing: .12em; }
+      .name { font: 600 14px 'Inter', ui-sans-serif, system-ui, sans-serif; fill: #f2f5f2; }
+      .sub { font: 12px 'Inter', ui-sans-serif, system-ui, sans-serif; fill: #a5afa7; }
+      .edge { stroke: #344338; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+      .edge.lit { stroke: #9eea6a; }
+      .edgelbl { font: 11px 'IBM Plex Mono', ui-monospace, monospace; fill: #a5afa7; }
+      .region { fill: none; stroke: #253128; stroke-dasharray: 4 4; }
+      .regionlbl { font: 600 10px 'IBM Plex Mono', ui-monospace, monospace; fill: #6f7b72; letter-spacing: .14em; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9eea6a"/>
+    </marker>
+  </defs>
+  <rect width="960" height="250" fill="#080b09"/>
+
+  <!-- regions -->
+  <rect class="region" x="16" y="30" width="356" height="200" rx="14"/>
+  <text class="regionlbl" x="32" y="52">SOURCE CHAIN · ETHEREUM</text>
+  <rect class="region" x="392" y="30" width="180" height="200" rx="14"/>
+  <text class="regionlbl" x="408" y="52">ATTESTCOIN</text>
+  <rect class="region" x="592" y="30" width="352" height="200" rx="14"/>
+  <text class="regionlbl" x="608" y="52">CREDITCOIN</text>
+
+  <!-- source contract -->
+  <rect class="box" x="36" y="80" width="140" height="70" rx="10"/>
+  <text class="lbl" x="52" y="102">CONTRACT</text>
+  <text class="name" x="52" y="122">view function</text>
+  <text class="sub" x="52" y="140">the EVM answers</text>
+
+  <!-- probe -->
+  <rect class="box" x="216" y="80" width="140" height="70" rx="10"/>
+  <text class="lbl" x="232" y="102">STATEPROBE</text>
+  <text class="name" x="232" y="122">Probed event</text>
+  <text class="sub" x="232" y="140">bytes, block, time</text>
+
+  <path class="edge lit" d="M176,115 L214,115"/>
+  <text class="edgelbl" x="170" y="172">staticcall → returndata</text>
+
+  <!-- attestcoin -->
+  <rect class="box" x="412" y="80" width="140" height="70" rx="10"/>
+  <text class="lbl" x="428" y="102">PROOF</text>
+  <text class="name" x="428" y="122">tx + log included</text>
+  <text class="sub" x="428" y="140">in an attested block</text>
+  <path class="edge lit" d="M356,115 L410,115"/>
+
+  <!-- registry -->
+  <rect class="box cc" x="612" y="80" width="140" height="70" rx="10"/>
+  <text class="lbl" x="628" y="102">LENSREGISTRY</text>
+  <text class="name" x="628" y="122">same bytes</text>
+  <text class="sub" x="628" y="140">age in source blocks</text>
+  <path class="edge lit" d="M552,115 L610,115"/>
+
+  <!-- consumers -->
+  <rect class="box" x="792" y="66" width="132" height="30" rx="8"/>
+  <text class="sub" x="806" y="86">ReserveMonitor</text>
+  <rect class="box" x="792" y="102" width="132" height="30" rx="8"/>
+  <text class="sub" x="806" y="122">AggregatorV3 adapter</text>
+  <rect class="box" x="792" y="138" width="132" height="30" rx="8"/>
+  <text class="sub" x="806" y="158">Governance, roles</text>
+  <path class="edge" d="M752,115 L790,81"/>
+  <path class="edge" d="M752,115 L790,117"/>
+  <path class="edge" d="M752,115 L790,153"/>
+
+  <text class="sub" x="612" y="200">Stale, failed or truncated → refuse</text>
+  <text class="sub" x="36" y="200">The prober decides when to ask. It never supplies the answer.</text>
+</svg>
